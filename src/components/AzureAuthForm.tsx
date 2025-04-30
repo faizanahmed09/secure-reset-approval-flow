@@ -1,13 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { AzureADCredentials } from '@/types/azure-types';
+import { AzureADCredentials, AuthState } from '@/types/azure-types';
 import { Lock, Key, Building, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const AzureAuthForm = () => {
   const [credentials, setCredentials] = useState<AzureADCredentials>({
@@ -16,37 +17,115 @@ const AzureAuthForm = () => {
     tenantId: '',
   });
   const [loading, setLoading] = useState(false);
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    error: undefined,
+  });
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // Check if user is authenticated
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // Redirect to login if not authenticated
+        navigate('/login');
+        return;
+      }
+      
+      // Check if user already has Azure credentials
+      const { data: azureCreds } = await supabase
+        .from('azure_credentials')
+        .select('*')
+        .maybeSingle();
+      
+      if (azureCreds?.token) {
+        // If credentials exist and token is valid, set as authenticated and redirect
+        const now = new Date();
+        const expiry = new Date(azureCreds.token_expires_at);
+        
+        if (expiry > now) {
+          setAuthState({
+            isAuthenticated: true,
+            token: azureCreds.token,
+          });
+          toast({
+            title: "Already Authenticated",
+            description: "You're already authenticated with Azure AD",
+          });
+          navigate('/reset-approval');
+        }
+      }
+    };
+    
+    checkUser();
+  }, [navigate, toast]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // For this demo, we'll simulate a successful authentication after a short delay
-    setTimeout(() => {
-      console.log('Authenticating with Azure AD:', credentials);
+    try {
+      // First ensure the user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication Error",
+          description: "You must be logged in to authenticate with Azure AD",
+          variant: "destructive",
+        });
+        navigate('/login');
+        return;
+      }
       
-      // In a real app, we would make an API call to authenticate with Azure AD
-      // and store the token in Supabase
-      
-      // Mock successful authentication
-      const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFkbWluIFVzZXIiLCJpYXQiOjE1MTYyMzkwMjJ9';
-      localStorage.setItem('azure_token', mockToken);
-      
-      toast({
-        title: "Authentication Successful",
-        description: "You've been authenticated with Azure AD",
+      // Call the Azure Auth edge function
+      const { data, error } = await supabase.functions.invoke('azure-auth', {
+        body: credentials,
       });
       
+      if (error || !data) {
+        console.error('Azure AD authentication error:', error);
+        setAuthState({
+          isAuthenticated: false,
+          error: error?.message || 'Failed to authenticate with Azure AD',
+        });
+        toast({
+          title: "Authentication Failed",
+          description: error?.message || 'Failed to authenticate with Azure AD',
+          variant: "destructive",
+        });
+      } else {
+        console.log('Azure AD authentication successful:', data);
+        setAuthState({
+          isAuthenticated: true,
+          token: data.token,
+        });
+        toast({
+          title: "Authentication Successful",
+          description: "You've been authenticated with Azure AD",
+        });
+        navigate('/reset-approval');
+      }
+    } catch (error) {
+      console.error('Error during Azure AD authentication:', error);
+      setAuthState({
+        isAuthenticated: false,
+        error: error.message,
+      });
+      toast({
+        title: "Authentication Error",
+        description: error.message || 'An unexpected error occurred',
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-      navigate('/reset-approval');
-    }, 2000);
+    }
   };
   
   return (
