@@ -47,6 +47,7 @@ const AzureAuthForm = () => {
     try {
       // Direct API call to Azure AD to get a token
       const tokenUrl = `https://login.microsoftonline.com/${credentials.tenantId}/oauth2/v2.0/token`;
+      console.log(tokenUrl,'tokenUrl>>')
       
       const formData = new URLSearchParams();
       formData.append('client_id', credentials.clientId);
@@ -61,6 +62,7 @@ const AzureAuthForm = () => {
         },
         body: formData.toString(),
       });
+      console.log('Azure AD response:', response);
       
       if (!response.ok) {
         const errorText = await response.text();
