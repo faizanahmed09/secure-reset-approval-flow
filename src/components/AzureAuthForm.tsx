@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AzureADCredentials, AuthState } from '@/types/azure-types';
 import { Lock, Key, Building, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 
 const AzureAuthForm = () => {
   const [credentials, setCredentials] = useState<AzureADCredentials>({
@@ -24,26 +25,19 @@ const AzureAuthForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Check if user is authenticated
+  // Check if user already has Azure credentials
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // Redirect to login if not authenticated
-        navigate('/login');
-        return;
-      }
-      
+    const checkAzureCredentials = async () => {
       // Check if user already has Azure credentials
       const { data: azureCreds } = await supabase
         .from('azure_credentials')
         .select('*')
         .maybeSingle();
       
-      if (azureCreds?.token) {
+      if (azureCreds && azureCreds.token) {
         // If credentials exist and token is valid, set as authenticated and redirect
         const now = new Date();
-        const expiry = new Date(azureCreds.token_expires_at);
+        const expiry = new Date(azureCreds.token_expires_at || '');
         
         if (expiry > now) {
           setAuthState({
@@ -59,7 +53,7 @@ const AzureAuthForm = () => {
       }
     };
     
-    checkUser();
+    checkAzureCredentials();
   }, [navigate, toast]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,18 +66,6 @@ const AzureAuthForm = () => {
     setLoading(true);
     
     try {
-      // First ensure the user is logged in
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication Error",
-          description: "You must be logged in to authenticate with Azure AD",
-          variant: "destructive",
-        });
-        navigate('/login');
-        return;
-      }
-      
       // Call the Azure Auth edge function
       const { data, error } = await supabase.functions.invoke('azure-auth', {
         body: credentials,
