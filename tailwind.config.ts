@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,21 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				azure: {
+					DEFAULT: '#0078d4',
+					dark: '#106ebe',
+					light: '#2b88d8',
+				},
+				success: {
+					DEFAULT: '#107c10',
+					dark: '#0b5e0b',
+					light: '#26a826',
+				},
+				warning: {
+					DEFAULT: '#d13438',
+					dark: '#a82a2a',
+					light: '#e45a5e',
 				}
 			},
 			borderRadius: {
@@ -84,12 +100,20 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+			},
+			fontFamily: {
+				sans: ['Segoe UI', 'system-ui', 'sans-serif'],
+			},
 		}
 	},
 	plugins: [require("tailwindcss-animate")],

@@ -1,9 +1,9 @@
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import AzureAuthForm from '@/components/AzureAuthForm';
+import ResetApprovalForm from '@/components/ResetApprovalForm';
 
-const Index = () => {
+const ResetApproval = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -11,21 +11,21 @@ const Index = () => {
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold">Password Reset Flow</h2>
+              <h2 className="text-3xl font-bold">Password Reset Approval</h2>
               <p className="text-muted-foreground">
-                Secure multi-factor password reset approval system
+                Request and monitor password reset approvals
               </p>
             </div>
             
-            <AzureAuthForm />
+            <ResetApprovalForm />
             
             <div className="bg-muted/50 p-4 rounded-md border">
-              <h3 className="text-sm font-medium mb-2">About this system:</h3>
+              <h3 className="text-sm font-medium mb-2">Process Information:</h3>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Authenticate using Azure AD credentials</li>
-                <li>• Initiate secure password reset requests</li>
-                <li>• Requires user approval via push notification</li>
-                <li>• Compliant with security best practices</li>
+                <li>• Enter the user's email address</li>
+                <li>• System sends a secure push notification to the user</li>
+                <li>• User approves or rejects the request</li>
+                <li>• On approval, the password is reset automatically</li>
               </ul>
             </div>
           </div>
@@ -36,4 +36,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default ResetApproval;
