@@ -14,7 +14,7 @@ export const msalConfig: Configuration = {
   },
 };
 
-// The scopes requested for authentication
+// The scopes request for authentication
 export const loginRequest: RedirectRequest = {
   scopes: ["User.Read", "User.Read.All", "Directory.Read.All"],
 };
