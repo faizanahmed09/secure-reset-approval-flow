@@ -1,5 +1,5 @@
 
-import { Configuration } from "@azure/msal-browser";
+import { Configuration, RedirectRequest } from "@azure/msal-browser";
 
 // Authentication configuration for Microsoft Authentication Library (MSAL)
 export const msalConfig: Configuration = {
@@ -15,7 +15,7 @@ export const msalConfig: Configuration = {
 };
 
 // The scopes requested for authentication
-export const loginRequest = {
+export const loginRequest: RedirectRequest = {
   scopes: ["User.Read", "User.Read.All", "Directory.Read.All"],
 };
 

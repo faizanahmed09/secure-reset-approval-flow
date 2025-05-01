@@ -5,7 +5,6 @@ import ResetApprovalForm from '@/components/ResetApprovalForm';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useEffect } from 'react';
 
 const ResetApproval = () => {
   const navigate = useNavigate();

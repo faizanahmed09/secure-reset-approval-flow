@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest, graphConfig } from '../authConfig';
 import axios from 'axios';
@@ -60,7 +60,7 @@ const UsersComponent = () => {
         title: "Users Loaded",
         description: `Successfully loaded ${response.data.value.length} users from Azure AD`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
         title: "Error Fetching Users",
@@ -81,7 +81,7 @@ const UsersComponent = () => {
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Users className="h-6 w-6 text-azure" />
+          <Users className="h-6 w-6 text-blue-600" />
           <span>Azure AD Users</span>
         </CardTitle>
         <CardDescription>Users from your Azure Active Directory</CardDescription>
@@ -89,7 +89,7 @@ const UsersComponent = () => {
       <CardContent>
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 text-azure animate-spin" />
+            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
           </div>
         ) : users.length > 0 ? (
           <div className="space-y-4">

@@ -9,7 +9,6 @@ import { ResetRequestState } from '@/types/azure-types';
 import { Send, Loader2, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '../authConfig';
-import axios from 'axios';
 
 const ResetApprovalForm = () => {
   const { instance, accounts } = useMsal();
@@ -94,7 +93,7 @@ const ResetApprovalForm = () => {
         }, 3000);
       }, 2000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during password reset request:', error);
       setResetRequest({
         email,
@@ -122,7 +121,7 @@ const ResetApprovalForm = () => {
         return (
           <div className="mt-6 p-4 border rounded-md bg-muted flex flex-col items-center">
             <div className="flex items-center space-x-2 mb-2">
-              <Loader2 className="h-6 w-6 text-azure animate-spin" />
+              <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
               <h3 className="font-medium">Processing Request</h3>
             </div>
             <p className="text-sm text-muted-foreground">{resetRequest.message}</p>
@@ -131,29 +130,29 @@ const ResetApprovalForm = () => {
         
       case 'approved':
         return (
-          <div className="mt-6 p-4 border rounded-md bg-success/10 flex flex-col items-center">
+          <div className="mt-6 p-4 border rounded-md bg-green-50 flex flex-col items-center">
             <div className="flex items-center space-x-2 mb-2">
-              <ShieldCheck className="h-6 w-6 text-success" />
-              <h3 className="font-medium text-success">Request Approved</h3>
+              <ShieldCheck className="h-6 w-6 text-green-600" />
+              <h3 className="font-medium text-green-600">Request Approved</h3>
             </div>
             <p className="text-sm">{resetRequest.message}</p>
             <p className="text-sm text-muted-foreground mt-2">Resetting password...</p>
             <div className="w-full h-2 bg-muted mt-4 rounded-full overflow-hidden">
-              <div className="h-full bg-success animate-pulse w-3/4"></div>
+              <div className="h-full bg-green-500 animate-pulse w-3/4"></div>
             </div>
           </div>
         );
         
       case 'completed':
         return (
-          <div className="mt-6 p-4 border rounded-md bg-success/10 flex flex-col items-center">
+          <div className="mt-6 p-4 border rounded-md bg-green-50 flex flex-col items-center">
             <div className="flex items-center space-x-2 mb-2">
-              <CheckCircle className="h-6 w-6 text-success" />
-              <h3 className="font-medium text-success">Password Reset Complete</h3>
+              <CheckCircle className="h-6 w-6 text-green-600" />
+              <h3 className="font-medium text-green-600">Password Reset Complete</h3>
             </div>
             <p className="text-sm">{resetRequest.message}</p>
             <Button 
-              className="mt-4 bg-success hover:bg-success-dark"
+              className="mt-4 bg-green-600 hover:bg-green-700"
               onClick={() => setResetRequest({ email: '', status: 'idle' })}
             >
               Reset Another Password
@@ -163,15 +162,15 @@ const ResetApprovalForm = () => {
         
       case 'error':
         return (
-          <div className="mt-6 p-4 border rounded-md bg-warning/10 flex flex-col items-center">
+          <div className="mt-6 p-4 border rounded-md bg-red-50 flex flex-col items-center">
             <div className="flex items-center space-x-2 mb-2">
-              <AlertCircle className="h-6 w-6 text-warning" />
-              <h3 className="font-medium text-warning">Error</h3>
+              <AlertCircle className="h-6 w-6 text-red-600" />
+              <h3 className="font-medium text-red-600">Error</h3>
             </div>
             <p className="text-sm">{resetRequest.message}</p>
             <Button 
               variant="outline" 
-              className="mt-4 border-warning text-warning hover:text-warning hover:bg-warning/10"
+              className="mt-4 border-red-300 text-red-600 hover:text-red-600 hover:bg-red-50"
               onClick={() => setResetRequest({ email: '', status: 'idle' })}
             >
               Try Again
@@ -204,13 +203,13 @@ const ResetApprovalForm = () => {
                 value={email}
                 onChange={handleEmailChange}
                 required
-                className="border-azure/20 focus:border-azure"
+                className="border-blue-100 focus:border-blue-500"
               />
             </div>
             
             <Button 
               type="submit" 
-              className="w-full bg-azure hover:bg-azure-dark"
+              className="w-full bg-blue-600 hover:bg-blue-700"
             >
               <Send className="mr-2 h-4 w-4" />
               Approve Password Reset

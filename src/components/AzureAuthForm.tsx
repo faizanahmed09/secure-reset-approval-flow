@@ -33,7 +33,7 @@ const AzureAuthForm = () => {
       
       // Redirect to reset approval page
       navigate('/reset-approval');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during Azure AD authentication:', error);
       
       toast({
@@ -78,7 +78,7 @@ const AzureAuthForm = () => {
         
         <Button 
           onClick={handleLogin}
-          className="w-full bg-azure hover:bg-azure-dark"
+          className="w-full bg-blue-600 hover:bg-blue-700"
           disabled={loading}
         >
           {loading ? (
