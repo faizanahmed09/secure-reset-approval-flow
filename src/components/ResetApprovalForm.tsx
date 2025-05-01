@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,35 +7,24 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { ResetRequestState } from '@/types/azure-types';
 import { Send, Loader2, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useMsal } from '@azure/msal-react';
+import { loginRequest } from '../authConfig';
+import axios from 'axios';
 
 const ResetApprovalForm = () => {
+  const { instance, accounts } = useMsal();
   const [email, setEmail] = useState('');
   const [resetRequest, setResetRequest] = useState<ResetRequestState>({
     email: '',
     status: 'idle',
   });
   const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  // Check if user is authenticated
-  useEffect(() => {
-    const token = localStorage.getItem('azure_token');
-    if (!token) {
-      toast({
-        title: "Authentication Required",
-        description: "Please authenticate with Azure AD first",
-        variant: "destructive"
-      });
-      navigate('/');
-    }
-  }, [navigate, toast]);
   
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
   };
   
-  const handleResetRequest = (e: React.FormEvent) => {
+  const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate email format
@@ -56,45 +45,74 @@ const ResetApprovalForm = () => {
       message: 'Sending push notification to user...'
     });
     
-    // In a real app, we would send a request to the Azure Notification Service API
-    // For demo purposes, simulate the flow with timeouts
-    
-    // Step 1: Simulate sending push notification
-    setTimeout(() => {
-      setResetRequest(prev => ({
-        ...prev,
-        message: 'Push notification sent. Waiting for user approval...'
-      }));
+    try {
+      // Get token for Microsoft Graph API
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
       
-      // Step 2: Simulate user approval (after 3 seconds)
+      // In a real scenario, you would call the Microsoft Graph API here
+      // For demo purposes, we'll simulate the flow
+      console.log(`Token acquired successfully for user ${accounts[0].username}`);
+      console.log(`Would send password reset request for: ${email}`);
+      
+      // Step 1: Simulate sending push notification
       setTimeout(() => {
-        setResetRequest({
-          email,
-          status: 'approved',
-          message: 'User approved the password reset request.'
-        });
+        setResetRequest(prev => ({
+          ...prev,
+          message: 'Push notification sent. Waiting for user approval...'
+        }));
         
-        toast({
-          title: "Request Approved",
-          description: "User has approved the password reset request",
-        });
-        
-        // Step 3: Simulate password reset completion (after 2 more seconds)
+        // Step 2: Simulate user approval (after 3 seconds)
         setTimeout(() => {
           setResetRequest({
             email,
-            status: 'completed',
-            message: 'Password has been reset successfully.'
+            status: 'approved',
+            message: 'User approved the password reset request.'
           });
           
           toast({
-            title: "Password Reset Complete",
-            description: `Password for ${email} has been reset successfully`,
-            variant: "default"
+            title: "Request Approved",
+            description: "User has approved the password reset request",
           });
-        }, 2000);
-      }, 3000);
-    }, 2000);
+          
+          // Step 3: Simulate password reset completion (after 2 more seconds)
+          setTimeout(() => {
+            setResetRequest({
+              email,
+              status: 'completed',
+              message: 'Password has been reset successfully.'
+            });
+            
+            toast({
+              title: "Password Reset Complete",
+              description: `Password for ${email} has been reset successfully`,
+              variant: "default"
+            });
+          }, 2000);
+        }, 3000);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error during password reset request:', error);
+      setResetRequest({
+        email,
+        status: 'error',
+        message: 'Failed to process the password reset request.'
+      });
+      
+      toast({
+        title: "Reset Request Failed",
+        description: "An error occurred while processing the password reset request",
+        variant: "destructive"
+      });
+      
+      // If token acquisition fails, fallback to redirect
+      if (error.name === "InteractionRequiredAuthError") {
+        instance.acquireTokenRedirect(loginRequest);
+      }
+    }
   };
   
   // Render different status content based on the request state

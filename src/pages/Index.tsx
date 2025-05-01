@@ -2,6 +2,8 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AzureAuthForm from '@/components/AzureAuthForm';
+import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react';
+import UsersComponent from '@/components/UsersComponent';
 
 const Index = () => {
   return (
@@ -17,15 +19,21 @@ const Index = () => {
               </p>
             </div>
             
-            <AzureAuthForm />
+            <UnauthenticatedTemplate>
+              <AzureAuthForm />
+            </UnauthenticatedTemplate>
+            
+            <AuthenticatedTemplate>
+              <UsersComponent />
+            </AuthenticatedTemplate>
             
             <div className="bg-muted/50 p-4 rounded-md border">
               <h3 className="text-sm font-medium mb-2">About this system:</h3>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Authenticate using Azure AD credentials</li>
+                <li>• View users in your Azure Active Directory</li>
                 <li>• Initiate secure password reset requests</li>
                 <li>• Requires user approval via push notification</li>
-                <li>• Compliant with security best practices</li>
               </ul>
             </div>
           </div>
