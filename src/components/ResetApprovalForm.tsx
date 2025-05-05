@@ -50,21 +50,47 @@ const ResetApprovalForm = () => {
         account: accounts[0],
       });
 
-      // get user details
-      // const userDetails = await getUserDetails(email, tokenResponse.accessToken);
-      // console.log('User details:', userDetails);
-      // debugger;
+      // Call our API route to send the push notification
+      const response = await fetch('/api/send-mfa-push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
       
-      // Step 1: Call Microsoft Graph API to trigger MFA (Push Notification)
-      await sendPushNotificationToUser(email, tokenResponse.accessToken);
-  
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send push notification');
+      }
+
+      console.log('Push notification response:', data);
+      
       // Step 2: If we get here, the notification was sent successfully
       setResetRequest(prev => ({
         ...prev,
-        message: 'Push notification sent. Waiting for user approval...'
+        message: 'Push notification sent. Waiting for user approval...',
+        requestId: data.requestId
       }));
-  
       
+      // For demo purposes, simulate approval after a delay
+      setTimeout(() => {
+        setResetRequest(prev => ({
+          ...prev,
+          status: 'approved',
+          message: 'User has approved the request'
+        }));
+        
+        // Simulate completion after approval
+        setTimeout(() => {
+          setResetRequest(prev => ({
+            ...prev,
+            status: 'completed',
+            message: 'Account changes have been successfully processed'
+          }));
+        }, 3000);
+      }, 5000);
     } catch (error: any) {
       console.error('Error during request:', error);
       setResetRequest({
