@@ -33,6 +33,8 @@ const AzureAuthForm = () => {
       
       // Redirect to reset approval page
       navigate('/reset-approval');
+      // navigate('/users');
+
     } catch (error: any) {
       console.error('Error during Azure AD authentication:', error);
       

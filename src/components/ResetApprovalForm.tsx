@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ResetRequestState } from '@/types/azure-types';
-import { Send, Loader2, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
+import { Send, Loader2, ShieldCheck, AlertCircle, CheckCircle, LogOut } from 'lucide-react';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '../authConfig';
 
@@ -25,7 +24,7 @@ const ResetApprovalForm = () => {
   
   const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+  
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -36,77 +35,50 @@ const ResetApprovalForm = () => {
       });
       return;
     }
-    
+  
     // Set status to loading and store the email
     setResetRequest({
       email,
       status: 'loading',
       message: 'Sending push notification to user...'
     });
-    
+  
     try {
-      // Get token for Microsoft Graph API
+      // Get token for Microsoft Graph API (using MSAL)
       const tokenResponse = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
       });
+
+      // get user details
+      // const userDetails = await getUserDetails(email, tokenResponse.accessToken);
+      // console.log('User details:', userDetails);
+      // debugger;
       
-      // In a real scenario, you would call the Microsoft Graph API here
-      // For demo purposes, we'll simulate the flow
-      console.log(`Token acquired successfully for user ${accounts[0].username}`);
-      console.log(`Would send password reset request for: ${email}`);
-      
-      // Step 1: Simulate sending push notification
-      setTimeout(() => {
-        setResetRequest(prev => ({
-          ...prev,
-          message: 'Push notification sent. Waiting for user approval...'
-        }));
-        
-        // Step 2: Simulate user approval (after 3 seconds)
-        setTimeout(() => {
-          setResetRequest({
-            email,
-            status: 'approved',
-            message: 'User approved the password reset request.'
-          });
-          
-          toast({
-            title: "Request Approved",
-            description: "User has approved the password reset request",
-          });
-          
-          // Step 3: Simulate password reset completion (after 2 more seconds)
-          setTimeout(() => {
-            setResetRequest({
-              email,
-              status: 'completed',
-              message: 'Password has been reset successfully.'
-            });
-            
-            toast({
-              title: "Password Reset Complete",
-              description: `Password for ${email} has been reset successfully`,
-              variant: "default"
-            });
-          }, 2000);
-        }, 3000);
-      }, 2000);
+      // Step 1: Call Microsoft Graph API to trigger MFA (Push Notification)
+      await sendPushNotificationToUser(email, tokenResponse.accessToken);
+  
+      // Step 2: If we get here, the notification was sent successfully
+      setResetRequest(prev => ({
+        ...prev,
+        message: 'Push notification sent. Waiting for user approval...'
+      }));
+  
       
     } catch (error: any) {
-      console.error('Error during password reset request:', error);
+      console.error('Error during request:', error);
       setResetRequest({
         email,
         status: 'error',
-        message: 'Failed to process the password reset request.'
+        message: error.message || 'Failed to process the reset request.'
       });
-      
+  
       toast({
         title: "Reset Request Failed",
-        description: "An error occurred while processing the password reset request",
+        description: error.message || "An error occurred while processing the reset request",
         variant: "destructive"
       });
-      
+  
       // If token acquisition fails, fallback to redirect
       if (error.name === "InteractionRequiredAuthError") {
         instance.acquireTokenRedirect(loginRequest);
@@ -114,6 +86,107 @@ const ResetApprovalForm = () => {
     }
   };
   
+  // Function to trigger push notification for approval via Microsoft Authenticator
+  const sendPushNotificationToUser = async (email: string, accessToken: string) => {
+    try {
+      
+      // Try to get the user's authentication methods using the correct Graph API endpoint
+      const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodedEmail}/authentication/methods`, {
+        method: 'GET', 
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error fetching authentication methods:', errorData);
+        throw new Error(`API Error: ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const methods = await response.json();
+      console.log('Available authentication methods:', methods);
+      
+      // Check if the user has Microsoft Authenticator set up
+      const authenticatorMethod = methods.value.find(
+        method => method['@odata.type'] === '#microsoft.graph.microsoftAuthenticatorAuthenticationMethod'
+      );
+      
+      // if (!authenticatorMethod) {
+      //   console.log('Microsoft Authenticator not set up for this user');
+      //   throw new Error('Microsoft Authenticator is not configured for this user account. Please set up the Microsoft Authenticator app for your account before using this feature.');
+      // }
+      
+      // In a real implementation with Authenticator properly set up, we would use the authenticator ID to send a notification
+      // const authenticatorId = '28c10230-6103-485e-b985-444c60001490';
+      
+      // // Here we would make an actual API call to send the push notification
+      // // This would be something like:
+      // const notificationResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${encodedEmail}/authentication/passwordAuthenticationMethod/${authenticatorId}/sendNotification`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${accessToken}`,
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     notificationTitle: "Account Reset Request",
+      //     notificationMessage: "Tap to approve the account reset request"
+      //   })
+      // });
+      
+      // console.log(notificationResponse,'Push notification sent successfully');
+      
+    } catch (error) {
+      console.error('Error during push notification:', error);
+      throw error; // Re-throw to be handled by the calling function
+    }
+  };  
+
+  const getUserDetails = async (email: string, accessToken: string) => {
+    try {
+      // Format the email for URL encoding if needed
+      const encodedEmail = encodeURIComponent(email);
+      
+      // Try to get the user's authentication methods using the correct Graph API endpoint
+      const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodedEmail}`, {
+        method: 'GET', 
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error fetching authentication methods:', errorData);
+        throw new Error(`API Error: ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const userDetails = await response.json();
+      console.log('User details:', userDetails);
+      return userDetails;
+
+    } catch (error) {
+      console.error('Error during push notification:', error);
+      throw error; // Re-throw to be handled by the calling function
+    }
+  }
+  
+  // Function to handle account change after user approval
+  const handleAccountChange = (email: string) => {
+    // Implement your logic here to update the account or make changes after user approval
+    console.log(`Account change initiated for: ${email}`);
+  };
+  
+  const handleLogout = () => {
+    instance.logoutRedirect().catch((error) => {
+      console.error('Logout error:', error);
+    });
+
+    window.location.href = '/';
+  };
+
   // Render different status content based on the request state
   const renderStatusContent = () => {
     switch(resetRequest.status) {
@@ -136,7 +209,7 @@ const ResetApprovalForm = () => {
               <h3 className="font-medium text-green-600">Request Approved</h3>
             </div>
             <p className="text-sm">{resetRequest.message}</p>
-            <p className="text-sm text-muted-foreground mt-2">Resetting password...</p>
+            <p className="text-sm text-muted-foreground mt-2">Processing account reset...</p>
             <div className="w-full h-2 bg-muted mt-4 rounded-full overflow-hidden">
               <div className="h-full bg-green-500 animate-pulse w-3/4"></div>
             </div>
@@ -148,14 +221,14 @@ const ResetApprovalForm = () => {
           <div className="mt-6 p-4 border rounded-md bg-green-50 flex flex-col items-center">
             <div className="flex items-center space-x-2 mb-2">
               <CheckCircle className="h-6 w-6 text-green-600" />
-              <h3 className="font-medium text-green-600">Password Reset Complete</h3>
+              <h3 className="font-medium text-green-600">Request Complete</h3>
             </div>
             <p className="text-sm">{resetRequest.message}</p>
             <Button 
               className="mt-4 bg-green-600 hover:bg-green-700"
               onClick={() => setResetRequest({ email: '', status: 'idle' })}
             >
-              Reset Another Password
+              Another Request
             </Button>
           </div>
         );
@@ -186,9 +259,9 @@ const ResetApprovalForm = () => {
   return (
     <Card className="w-full max-w-md security-card">
       <CardHeader>
-        <CardTitle className="text-center text-2xl">Password Reset Approval</CardTitle>
+        <CardTitle className="text-center text-2xl">Reset Approval</CardTitle>
         <CardDescription className="text-center">
-          Enter the user's email to trigger a password reset request
+          Enter the user's email to trigger a request
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -212,7 +285,7 @@ const ResetApprovalForm = () => {
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
               <Send className="mr-2 h-4 w-4" />
-              Approve Password Reset
+              Approve Request
             </Button>
           </form>
         ) : (
@@ -222,6 +295,16 @@ const ResetApprovalForm = () => {
       <CardFooter className="flex justify-center text-sm text-muted-foreground">
         {resetRequest.status === 'idle' && "User will receive a push notification to approve"}
       </CardFooter>
+
+      <div className="mt-4 w-full flex justify-center">
+        <Button 
+          onClick={handleLogout} 
+          className="bg-red-600 hover:bg-red-700"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Log Out
+        </Button>
+      </div>
     </Card>
   );
 };

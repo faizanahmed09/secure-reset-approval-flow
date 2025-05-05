@@ -23,9 +23,6 @@ const Index = () => {
               <AzureAuthForm />
             </UnauthenticatedTemplate>
             
-            <AuthenticatedTemplate>
-              <UsersComponent />
-            </AuthenticatedTemplate>
             
             <div className="bg-muted/50 p-4 rounded-md border">
               <h3 className="text-sm font-medium mb-2">About this system:</h3>

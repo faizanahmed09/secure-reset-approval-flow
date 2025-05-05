@@ -1,4 +1,3 @@
-
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ResetApprovalForm from '@/components/ResetApprovalForm';
@@ -16,9 +15,9 @@ const ResetApproval = () => {
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold">Password Reset Approval</h2>
+              <h2 className="text-3xl font-bold">Reset Approvals</h2>
               <p className="text-muted-foreground">
-                Request and monitor password reset approvals
+                Request and monitor reset approvals
               </p>
             </div>
             
