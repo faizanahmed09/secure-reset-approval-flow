@@ -1,0 +1,118 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useMsal } from '@azure/msal-react';
+import { loginRequest, graphConfig } from '../authConfig';
+import axios from 'axios';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+interface AzureUser {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  mail?: string;
+}
+
+const UsersComponentClient = () => {
+  const { instance, accounts } = useMsal();
+  const [users, setUsers] = useState<AzureUser[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      fetchUsers();
+    } else {
+      login();
+    }
+  }, [accounts]);
+
+  const login = async () => {
+    try {
+      await instance.loginRedirect(loginRequest);
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast({
+        title: "Authentication Failed",
+        description: "Failed to authenticate with Azure AD",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+
+      const response = await axios.get(graphConfig.graphUsersEndpoint, {
+        headers: {
+          Authorization: `Bearer ${tokenResponse.accessToken}`,
+        },
+      });
+      
+      setUsers(response.data.value);
+      toast({
+        title: "Users Loaded",
+        description: `Successfully loaded ${response.data.value.length} users from Azure AD`,
+      });
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error Fetching Users",
+        description: "Failed to fetch users from Azure AD",
+        variant: "destructive",
+      });
+      
+      // If silent token acquisition fails, fallback to redirect
+      if (error.name === "InteractionRequiredAuthError") {
+        instance.acquireTokenRedirect(loginRequest);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Users className="h-6 w-6 text-blue-600" />
+          <span>Azure AD Users</span>
+        </CardTitle>
+        <CardDescription>Users from your Azure Active Directory</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          </div>
+        ) : users.length > 0 ? (
+          <div className="space-y-4">
+            {users.map((user) => (
+              <div key={user.id} className="p-4 border rounded-md bg-muted/30 flex flex-col">
+                <div className="font-medium">{user.displayName}</div>
+                <div className="text-sm text-muted-foreground">{user.userPrincipalName}</div>
+                {user.mail && <div className="text-sm text-muted-foreground">{user.mail}</div>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No users found or insufficient permissions
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default UsersComponentClient;

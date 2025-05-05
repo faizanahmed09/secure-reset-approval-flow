@@ -1,12 +1,15 @@
 
 import { Configuration, RedirectRequest } from "@azure/msal-browser";
 
+// Check if we're running on the client side
+const isClient = typeof window !== 'undefined';
+
 // Authentication configuration for Microsoft Authentication Library (MSAL)
 export const msalConfig: Configuration = {
   auth: {
     clientId: "efabf195-fac1-40de-9260-db44bf7d4b88", // Replace with your Azure AD client ID
     authority: "https://login.microsoftonline.com/9e49778e-eaec-444a-881b-a8f1f57c66e1", // Replace with your tenant ID
-    redirectUri: window.location.origin, // Uses the current URL as redirect URI
+    redirectUri: isClient ? window.location.origin : "http://localhost:3000", // Uses the current URL as redirect URI
   },
   cache: {
     cacheLocation: "sessionStorage",
@@ -16,7 +19,6 @@ export const msalConfig: Configuration = {
 
 // The scopes request for authentication
 export const loginRequest: RedirectRequest = {
-  // scopes: ["User.Read", "User.Read.All", "Directory.Read.All"],
   scopes: [
     'User.Read',  // Basic profile read permissions
     'User.ReadWrite.All',  // Modify user data permissions
