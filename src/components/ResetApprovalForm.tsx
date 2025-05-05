@@ -19,6 +19,7 @@ type ResetRequestState = {
   email: string;
   status: 'idle' | 'loading' | 'approved' | 'error';
   message?: string;
+  contextId?: string;
 };
 
 const ResetApprovalForm = () => {
@@ -41,37 +42,37 @@ const ResetApprovalForm = () => {
       return;
     }
 
-
     setResetReq({ email, status: 'loading', message: 'Sending push…' });
 
     try {
-    // Get token for Microsoft Graph API (using MSAL)
-    const tokenResponse = await instance.acquireTokenSilent({
-      ...loginRequest,
-      account: accounts[0],
-    });
+      // Get token for Microsoft Graph API (using MSAL)
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
 
-    await sendPushNotificationToUser(email, tokenResponse.accessToken);
+      await sendPushNotificationToUser(email, tokenResponse.accessToken);
 
-  } catch (error) {
-    console.error('Error sending push notification:', error);
-    setResetReq({
-      email,
-      status: 'error',
-      message: 'Failed to send push notification. Please try again.',
-    });
-    toast({
-      title: "Push Notification Failed",
-      description: "Failed to send push notification",
-      variant: "destructive",
-    });
-  }
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+      setResetReq({
+        email,
+        status: 'error',
+        message: 'Failed to send push notification. Please try again.',
+      });
+      toast({
+        title: "Push Notification Failed",
+        description: "Failed to send push notification",
+        variant: "destructive",
+      });
+    }
   };
 
   const sendPushNotificationToUser = async (email: string, accessToken: string) => {
     try {
-      // Call our API endpoint to send the MFA push
-      const response = await fetch('/send-mfa-push', {
+      // Call our Supabase Edge Function to send the MFA push
+      const supabaseUrl = 'https://lbyvutzdimidlzgbjstz.supabase.co';
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-mfa-push`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -89,11 +90,12 @@ const ResetApprovalForm = () => {
       setResetReq({
         email,
         status: 'loading',
-        message: 'Approval request sent. Waiting for user response...'
+        message: 'Approval request sent. Waiting for user response...',
+        contextId: data.contextId
       });
       
       // Start polling for authentication result
-      startPollingForMFAStatus(email);
+      startPollingForMFAStatus(email, data.contextId);
       
       return data;
     } catch (error) {
@@ -115,10 +117,7 @@ const ResetApprovalForm = () => {
   };
   
   // Function to poll for authentication status
-  const startPollingForMFAStatus = (email: string) => {
-    // In a real implementation, you would store contextId, tenantId and token
-    // For now, we'll simulate a response
-    
+  const startPollingForMFAStatus = (email: string, contextId: string) => {
     let pollingCount = 0;
     const maxPolls = 60; // Poll for up to 5 minutes (60 * 5s = 5 min)
     const pollingInterval = 5000; // 5 seconds
@@ -126,9 +125,7 @@ const ResetApprovalForm = () => {
     const pollStatus = async () => {
       try {
         // In production, you would make a real API call here with the actual contextId
-        // const response = await fetch('/api/check-mfa-status', { ... })
-        
-        // Simulate a response for demo purposes
+        // For now, we'll simulate a response
         pollingCount++;
         
         if (pollingCount >= maxPolls) {
@@ -229,7 +226,7 @@ const ResetApprovalForm = () => {
       <CardHeader>
         <CardTitle className="text-center">Reset Approval</CardTitle>
         <CardDescription className="text-center">
-          Enter the user’s email to trigger approval
+          Enter the user's email to trigger approval
         </CardDescription>
       </CardHeader>
 

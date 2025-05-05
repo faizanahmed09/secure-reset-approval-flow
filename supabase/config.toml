@@ -1,5 +1,8 @@
 
 project_id = "lbyvutzdimidlzgbjstz"
 
-[functions.azure-auth]
-verify_jwt = true
+[functions.send-mfa-push]
+verify_jwt = false
+
+[functions.check-mfa-status]
+verify_jwt = false
