@@ -7,8 +7,8 @@ const isClient = typeof window !== 'undefined';
 // Authentication configuration for Microsoft Authentication Library (MSAL)
 export const msalConfig: Configuration = {
   auth: {
-    clientId: "efabf195-fac1-40de-9260-db44bf7d4b88", // Replace with your Azure AD client ID
-    authority: "https://login.microsoftonline.com/9e49778e-eaec-444a-881b-a8f1f57c66e1", // Replace with your tenant ID
+    clientId: "809efbcb-4d5e-4f17-adb1-cddb49f98f30", // Replace with your Azure AD client ID
+    authority: "https://login.microsoftonline.com/db265c9f-9e82-4ad3-ad5c-b5435ba0a6d9", // Replace with your tenant ID
     redirectUri: isClient ? window.location.origin : "http://localhost:3000", // Uses the current URL as redirect URI
   },
   cache: {
