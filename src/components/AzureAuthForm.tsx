@@ -1,18 +1,35 @@
 
-import { useState } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Lock, Key, Building, Loader2 } from 'lucide-react';
+import { Lock, Key, Building, Loader2, Settings } from 'lucide-react';
 import { loginRequest } from '../authConfig';
+import AzureConfigForm from './AzureConfigForm';
 
 const AzureAuthForm = () => {
   const { instance } = useMsal();
   const [loading, setLoading] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [hasCredentials, setHasCredentials] = useState(true); 
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Check if Azure credentials are configured
+    const clientId = localStorage.getItem('azureClientId');
+    console.log('Client ID:', clientId);
+    const tenantId = localStorage.getItem('azureTenantId');
+    
+    if (!clientId || !tenantId) {
+      setHasCredentials(false);
+      setShowConfig(true);
+    }
+  }, []);
   
   const handleLogin = async () => {
     setLoading(true);
@@ -34,7 +51,7 @@ const AzureAuthForm = () => {
       // Redirect to reset approval page
       navigate('/reset-approval');
       // navigate('/users');
-
+      
     } catch (error: any) {
       console.error('Error during Azure AD authentication:', error);
       
@@ -56,6 +73,19 @@ const AzureAuthForm = () => {
       setLoading(false);
     }
   };
+
+  const handleConfigComplete = () => {
+    setHasCredentials(true);
+    setShowConfig(false);
+    // Force page reload to apply new credentials
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
+  
+  if (showConfig) {
+    return <AzureConfigForm onConfigComplete={handleConfigComplete} />;
+  }
   
   return (
     <Card className="w-full max-w-md security-card">
@@ -81,7 +111,7 @@ const AzureAuthForm = () => {
         <Button 
           onClick={handleLogin}
           className="w-full bg-blue-600 hover:bg-blue-700"
-          disabled={loading}
+          disabled={loading || !hasCredentials}
         >
           {loading ? (
             <>
@@ -91,6 +121,14 @@ const AzureAuthForm = () => {
           ) : (
             'Sign in with Microsoft'
           )}
+        </Button>
+
+        <Button 
+          onClick={() => setShowConfig(true)}
+          variant="outline"
+          className="w-full"
+        >
+          <Settings className="mr-2 h-4 w-4" /> Configure Azure Credentials
         </Button>
       </CardContent>
       <CardFooter className="flex justify-center text-sm text-muted-foreground">
