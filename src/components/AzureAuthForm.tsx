@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Lock, Key, Building, Loader2, Settings, LogOut } from 'lucide-react';
+import { Lock, Key, Building, Loader2, Settings } from 'lucide-react';
 import { loginRequest, clearAzureAuth } from '../authConfig';
 import AzureConfigForm from './AzureConfigForm';
 
@@ -15,52 +15,51 @@ const AzureAuthForm = () => {
   const { instance } = useMsal();
   const [loading, setLoading] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
-  const [hasCredentials, setHasCredentials] = useState(true); 
+  const [hasCredentials, setHasCredentials] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     // Check if Azure credentials are configured
     const clientId = localStorage.getItem('azureClientId');
-    console.log('Client ID:', clientId);
     const tenantId = localStorage.getItem('azureTenantId');
-    
+
     if (!clientId || !tenantId) {
       setHasCredentials(false);
       setShowConfig(true);
     }
   }, []);
-  
+
   const handleLogin = async () => {
     setLoading(true);
-    
+
     try {
       // Try to login with a popup
       const loginResponse = await instance.loginPopup(loginRequest);
       console.log('Authentication successful:', loginResponse);
-      
+
       // Store token in session storage
       sessionStorage.setItem('azureToken', loginResponse.accessToken);
       sessionStorage.setItem('azureTokenExpiry', (Date.now() + 3600 * 1000).toString());
-      
+
       toast({
         title: "Authentication Successful",
         description: "You've been authenticated with Azure AD",
       });
-      
+
       // Redirect to reset approval page
       navigate('/reset-approval');
       // navigate('/users');
-      
+
     } catch (error: any) {
       console.error('Error during Azure AD authentication:', error);
-      
+
       toast({
         title: "Authentication Error",
         description: error.message || 'An unexpected error occurred',
         variant: "destructive",
       });
-      
+
       // If popup fails, try redirect
       if (error.name === "PopupBlockedError") {
         try {
@@ -74,31 +73,6 @@ const AzureAuthForm = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      // Log out from MSAL
-      await instance.logoutPopup();
-      
-      // Clear Azure auth-related items from localStorage/sessionStorage
-      clearAzureAuth();
-      
-      toast({
-        title: "Logged Out Successfully",
-        description: "You've been logged out from Azure AD",
-      });
-      
-      // Navigate back to home page
-      navigate('/');
-      
-    } catch (error: any) {
-      console.error('Error during logout:', error);
-      toast({
-        title: "Logout Error",
-        description: error.message || 'An error occurred during logout',
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleConfigComplete = () => {
     setHasCredentials(true);
@@ -108,11 +82,11 @@ const AzureAuthForm = () => {
       window.location.reload();
     }
   };
-  
+
   if (showConfig) {
     return <AzureConfigForm onConfigComplete={handleConfigComplete} />;
   }
-  
+
   return (
     <Card className="w-full max-w-md security-card">
       <CardHeader>
@@ -133,8 +107,8 @@ const AzureAuthForm = () => {
             <li>• Secure using Microsoft identity platform</li>
           </ul>
         </div>
-        
-        <Button 
+
+        <Button
           onClick={handleLogin}
           className="w-full bg-blue-600 hover:bg-blue-700"
           disabled={loading || !hasCredentials}
@@ -149,17 +123,8 @@ const AzureAuthForm = () => {
           )}
         </Button>
 
-        {instance.getActiveAccount() && (
-          <Button 
-            onClick={handleLogout}
-            variant="destructive"
-            className="w-full"
-          >
-            <LogOut className="mr-2 h-4 w-4" /> Sign Out
-          </Button>
-        )}
 
-        <Button 
+        <Button
           onClick={() => setShowConfig(true)}
           variant="outline"
           className="w-full"
