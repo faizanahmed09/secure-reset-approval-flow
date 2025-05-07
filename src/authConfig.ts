@@ -4,11 +4,26 @@ import { Configuration, RedirectRequest } from "@azure/msal-browser";
 // Check if we're running on the client side
 const isClient = typeof window !== 'undefined';
 
+// Get stored Azure AD credentials from localStorage or use defaults
+const getStoredClientId = (): string => {
+  if (isClient) {
+    return localStorage.getItem('azureClientId') || "809efbcb-4d5e-4f17-adb1-cddb49f98f30";
+  }
+  return "809efbcb-4d5e-4f17-adb1-cddb49f98f30"; // Default client ID
+};
+
+const getStoredTenantId = (): string => {
+  if (isClient) {
+    return localStorage.getItem('azureTenantId') || "db265c9f-9e82-4ad3-ad5c-b5435ba0a6d9";
+  }
+  return "db265c9f-9e82-4ad3-ad5c-b5435ba0a6d9"; // Default tenant ID
+};
+
 // Authentication configuration for Microsoft Authentication Library (MSAL)
 export const msalConfig: Configuration = {
   auth: {
-    clientId: "809efbcb-4d5e-4f17-adb1-cddb49f98f30", // Replace with your Azure AD client ID
-    authority: "https://login.microsoftonline.com/db265c9f-9e82-4ad3-ad5c-b5435ba0a6d9", // Replace with your tenant ID
+    clientId: getStoredClientId(), // Get from localStorage or use default
+    authority: `https://login.microsoftonline.com/${getStoredTenantId()}`, // Get from localStorage or use default
     redirectUri: isClient ? window.location.origin : "http://localhost:3000", // Uses the current URL as redirect URI
   },
   cache: {
