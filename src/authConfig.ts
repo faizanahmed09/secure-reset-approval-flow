@@ -20,7 +20,6 @@ export const msalConfig: Configuration = {
 // The scopes request for authentication
 export const loginRequest: RedirectRequest = {
   scopes: [
-    'User.Read',  // Basic profile read permissions
     'User.ReadWrite.All',  // Modify user data permissions
     'Directory.ReadWrite.All',  // Directory-related changes
     'offline_access',  // To get refresh tokens
