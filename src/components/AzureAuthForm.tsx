@@ -7,8 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Lock, Key, Building, Loader2, Settings } from 'lucide-react';
-import { loginRequest } from '../authConfig';
+import { Lock, Key, Building, Loader2, Settings, LogOut } from 'lucide-react';
+import { loginRequest, clearAzureAuth } from '../authConfig';
 import AzureConfigForm from './AzureConfigForm';
 
 const AzureAuthForm = () => {
@@ -74,6 +74,32 @@ const AzureAuthForm = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      // Log out from MSAL
+      await instance.logoutPopup();
+      
+      // Clear Azure auth-related items from localStorage/sessionStorage
+      clearAzureAuth();
+      
+      toast({
+        title: "Logged Out Successfully",
+        description: "You've been logged out from Azure AD",
+      });
+      
+      // Navigate back to home page
+      navigate('/');
+      
+    } catch (error: any) {
+      console.error('Error during logout:', error);
+      toast({
+        title: "Logout Error",
+        description: error.message || 'An error occurred during logout',
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleConfigComplete = () => {
     setHasCredentials(true);
     setShowConfig(false);
@@ -122,6 +148,16 @@ const AzureAuthForm = () => {
             'Sign in with Microsoft'
           )}
         </Button>
+
+        {instance.getActiveAccount() && (
+          <Button 
+            onClick={handleLogout}
+            variant="destructive"
+            className="w-full"
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Sign Out
+          </Button>
+        )}
 
         <Button 
           onClick={() => setShowConfig(true)}
