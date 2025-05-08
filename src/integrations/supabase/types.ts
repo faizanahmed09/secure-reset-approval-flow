@@ -45,17 +45,18 @@ export type Database = {
         }
         Relationships: []
       }
-      reset_requests: {
+      change_requests: {
         Row: {
           approved_at: string | null
           completed_at: string | null
           created_at: string
-          email: string
+          user_email: string
           id: string
           notification_sent: boolean | null
           status: string
           updated_at: string
           user_id: string
+          context_id: string | null
         }
         Insert: {
           approved_at?: string | null

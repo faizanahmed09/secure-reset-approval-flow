@@ -55,7 +55,7 @@ export const graphConfig = {
 
 // Helper function to clear all Azure-related items from localStorage on logout
 export const clearAzureAuth = () => {
-  if (FisClient) {
+  if (isClient) {
     // Clear tokens from sessionStorage
     sessionStorage.removeItem('azureToken');
     sessionStorage.removeItem('azureTokenExpiry');
