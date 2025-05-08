@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 
 // CORS headers
@@ -64,6 +65,9 @@ serve(async (req) => {
     if (supabaseUrl && supabaseServiceKey) {
       try {
         console.log("Storing MFA request in database");
+        // Generate a UUID to use as user_id for the change_requests table
+        const userId = crypto.randomUUID();
+        
         const response = await fetch(`${supabaseUrl}/rest/v1/change_requests`, {
           method: "POST",
           headers: {
@@ -77,7 +81,7 @@ serve(async (req) => {
             status: "pending",
             notification_sent: true,
             context_id: contextId,
-            user_id: null,
+            user_id: userId, // Use the generated UUID as user_id
           }),
         });
 

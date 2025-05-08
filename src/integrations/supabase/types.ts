@@ -49,35 +49,37 @@ export type Database = {
         Row: {
           approved_at: string | null
           completed_at: string | null
+          context_id: string | null
           created_at: string
-          user_email: string
           id: string
           notification_sent: boolean | null
           status: string
           updated_at: string
+          user_email: string
           user_id: string
-          context_id: string | null
         }
         Insert: {
           approved_at?: string | null
           completed_at?: string | null
+          context_id?: string | null
           created_at?: string
-          email: string
           id?: string
           notification_sent?: boolean | null
           status?: string
           updated_at?: string
+          user_email: string
           user_id: string
         }
         Update: {
           approved_at?: string | null
           completed_at?: string | null
+          context_id?: string | null
           created_at?: string
-          email?: string
           id?: string
           notification_sent?: boolean | null
           status?: string
           updated_at?: string
+          user_email?: string
           user_id?: string
         }
         Relationships: []
