@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 
 // CORS headers
@@ -16,16 +15,14 @@ serve(async (req) => {
   try {
     console.log("Received request to send MFA push notification");
     const body = await req.json();
-    body.tenantId = "db265c9f-9e82-4ad3-ad5c-b5435ba0a6d9";
-
-    const { email, accessToken, tenantId } = body;
+    const { email, userDetails } = body;
 
     // Validate incoming data
-    if (!email || !accessToken || !tenantId) {
+    if (!email || !userDetails) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "Missing required parameters",
+          message: "Missing required parameters: email or userDetails",
         }),
         {
           status: 400,
@@ -34,102 +31,278 @@ serve(async (req) => {
       );
     }
 
-    // # Get ID of 'Entra Id MFA Notification Client' Service Principal
-    // $servicePrincipalId = (Get-MgServicePrincipal -Filter "appid eq '981f26a1-7f43-403b-a875-f8b09b8cd720'").Id
-    // const ClientAppId = '809efbcb-4d5e-4f17-adb1-cddb49f98f30'; // Entra Id MFA Notification Client App ID
+    // const tenantId = userDetails.tenantId;
+    const tenantId = "a18efd2c-d866-4a6d-89be-cc85869862a2"; // Your Azure AD tenant ID
+    const clientId = "981f26a1-7f43-403b-a875-f8b09b8cd720"; // Your Azure AD application ID
+    const clientSecret = "y9w8Q~t9EFiOaob3iKPa~MlvHuHftlybSO9mUdx~"; // Your Azure AD application secret
+    try {
+      // Step 1: Get MFA service token
+      const mfaServiceToken = await getMfaServiceToken(
+        tenantId,
+        clientId,
+        clientSecret
+      );
+      console.log("MFA Service Token obtained successfully");
 
-    // step 1: Create a client secret for the service principal
-    const mfaServiceToken = await getMfaServiceToken();
-    console.log("MFA Service Token:", mfaServiceToken);
+      // Step 2: Create a unique context ID
+      const contextId = crypto.randomUUID();
 
-    // step 2: Create a client secret for the service principal
-    // const servicePrincipalId = await getServicePrincipalId(mfaServiceToken);
-    // console.log('Service Principal ID:', servicePrincipalId);
+      // Step 3: Send the MFA notification
+      const result = await sendMfaNotification(
+        email,
+        mfaServiceToken,
+        contextId
+      );
 
-    // step 3: Create a client secret for the service principal
-    // const mfaSecret = await createMfaClientSecret(mfaServiceToken, servicePrincipalId);
-    // console.log('MFA Client Secret:', mfaSecret);
+      // Step 4: Parse the XML response
+      const mfaOutcome = parseMfaResponse(result);
+      console.log("Parsed MFA outcome:", mfaOutcome);
 
-    const contextId = crypto.randomUUID();
+      // Step 5: Store MFA request details in Supabase
+      await storeMfaRequest(email, userDetails, contextId, mfaOutcome);
 
-    // step 4: Get the MFA token using the client secret
-    const result = await sendMfaNotification(email, mfaServiceToken, contextId);
-    console.log("MFA notification result:", result);
-    // step 5: Parse the XML response
-    const mfaOutcome = parseMfaResponse(result);
-
-    // Step 4: Store MFA request details in Supabase if needed
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-
-    if (supabaseUrl && supabaseServiceKey) {
-      try {
-        console.log("Storing MFA request in database");
-        // Generate a UUID to use as user_id for the change_requests table
-        const userId = crypto.randomUUID();
-        
-        const response = await fetch(`${supabaseUrl}/rest/v1/change_requests`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${supabaseServiceKey}`,
-            apikey: supabaseServiceKey,
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({
-            user_email: email,
-            status: "pending",
-            notification_sent: true,
-            context_id: contextId,
-            user_id: userId, // Use the generated UUID as user_id
-          }),
-        });
-
-        if (!response.ok) {
-          console.error(
-            "Failed to insert reset request:",
-            await response.text()
-          );
-        } else {
-          console.log("Successfully stored MFA request");
+      // Return success response with MFA outcome
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `MFA push notification sent to ${email}`,
+          contextId: contextId,
+          result: mfaOutcome,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
-      } catch (error) {
-        console.error("Error inserting reset request:", error);
-      }
+      );
+    } catch (error) {
+      console.error("Error in MFA process:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown error during MFA process",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `MFA push notification sent to ${email}`,
-        contextId: contextId,
-        result: mfaOutcome,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
   } catch (error) {
-    console.error("Error in MFA process:", error);
+    console.error("Error parsing request:", error);
     return new Response(
       JSON.stringify({
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unknown error during MFA process",
+        message: "Invalid request format",
       }),
       {
-        status: 500,
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }
 });
 
-// $servicePrincipalId = (Get-MgServicePrincipal -Filter "appid eq '981f26a1-7f43-403b-a875-f8b09b8cd720'").Id
+// Function to get a token for the MFA service
+async function getMfaServiceToken(
+  tenantId: string,
+  clientId: string,
+  clientSecret: string
+): Promise<string> {
+  try {
+    console.log("Getting MFA service token");
+    const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/token`;
+    const params = new URLSearchParams({
+      resource:
+        "https://adnotifications.windowsazure.com/StrongAuthenticationService.svc/Connector",
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "client_credentials",
+      scope: "openid",
+    });
 
-// Get Service Principal ID
+    const response = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to get MFA token: ${response.status} ${response.statusText} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    console.error("Error getting MFA token:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Unknown error getting MFA token"
+    );
+  }
+}
+
+// Function to send MFA notification
+async function sendMfaNotification(
+  email: string,
+  mfaServiceToken: string,
+  contextId: string
+): Promise<string> {
+  const mfaXML = `
+    <BeginTwoWayAuthenticationRequest>
+      <Version>1.0</Version>
+      <UserPrincipalName>${email}</UserPrincipalName>
+      <Lcid>en-us</Lcid>
+      <AuthenticationMethodProperties xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+        <a:KeyValueOfstringstring>
+          <a:Key>OverrideVoiceOtp</a:Key>
+          <a:Value>false</a:Value>
+        </a:KeyValueOfstringstring>
+      </AuthenticationMethodProperties>
+      <ContextId>${contextId}</ContextId>
+      <SyncCall>true</SyncCall>
+      <RequireUserMatch>true</RequireUserMatch>
+      <CallerName>radius</CallerName>
+      <CallerIP>UNKNOWN:</CallerIP>
+    </BeginTwoWayAuthenticationRequest>
+  `;
+
+  try {
+    const response = await fetch(
+      "https://strongauthenticationservice.auth.microsoft.com/StrongAuthenticationService.svc/Connector/BeginTwoWayAuthentication",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/xml",
+          Authorization: `Bearer ${mfaServiceToken}`,
+        },
+        body: mfaXML,
+      }
+    );
+
+    console.log("MFA notification response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to send MFA request: ${response.status} ${response.statusText} - ${errorText}`
+      );
+    }
+
+    return await response.text();
+  } catch (error) {
+    console.error("Error sending MFA notification:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Unknown error sending MFA notification"
+    );
+  }
+}
+
+// Helper function to parse the XML response
+function parseMfaResponse(xmlString: string) {
+  const result = {
+    received: false,
+    approved: false,
+    denied: false,
+    timeout: false,
+    message: "",
+  };
+
+  try {
+    // Check if we have a valid response
+    result.received =
+      xmlString.includes("AuthenticationResult") &&
+      xmlString.includes("BeginTwoWayAuthenticationResponse");
+
+    // Check for common status patterns
+    result.approved = xmlString.includes("<Value>Success</Value>");
+    result.denied = xmlString.includes("<Value>PhoneAppDenied</Value>");
+    result.timeout = xmlString.includes("<Value>PhoneAppNoResponse</Value>");
+
+    // Extract message if possible
+    const messageMatch = xmlString.match(/<Message>(.*?)<\/Message>/);
+    if (messageMatch && messageMatch[1]) {
+      result.message = messageMatch[1];
+    } else if (result.approved) {
+      result.message = "User approved the request";
+    } else if (result.denied) {
+      result.message = "User denied the request";
+    } else if (result.timeout) {
+      result.message = "Request timed out - no response from user";
+    }
+  } catch (error) {
+    console.error("Error parsing MFA response:", error);
+    result.message = "Error parsing MFA response";
+  }
+
+  return result;
+}
+
+// Store MFA request details in Supabase
+async function storeMfaRequest(
+  email: string,
+  userDetails: any,
+  contextId: string,
+  mfaOutcome: any
+) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn(
+      "Supabase credentials not configured, skipping database storage"
+    );
+    return;
+  }
+
+  try {
+    console.log("Storing MFA request in database");
+
+    // Determine appropriate status for the database
+    let status = "pending";
+    if (mfaOutcome.approved) status = "approved";
+    if (mfaOutcome.denied) status = "denied";
+    if (mfaOutcome.timeout) status = "timeout";
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/change_requests`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseServiceKey}`,
+        apikey: supabaseServiceKey,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_email: email,
+        status: status,
+        notification_sent: true,
+        context_id: contextId,
+        completed_at: new Date().toISOString(),
+        admin_object_id: userDetails.userObjectId || null,
+        admin_name: userDetails.name || null,
+        admin_email: userDetails.email || null,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Failed to insert request record:", errorText);
+      throw new Error("Failed to store request data in database");
+    }
+
+    console.log("Successfully stored MFA request with status:", status);
+  } catch (error) {
+    console.error("Error inserting request:", error);
+    // We don't throw here since this is a non-critical operation
+  }
+}
 
 // Function to get Service Principal ID by appId
 const getServicePrincipalId = async (mfaServiceToken: string) => {
@@ -174,45 +347,7 @@ const getServicePrincipalId = async (mfaServiceToken: string) => {
   }
 };
 
-// Function to get a token for the MFA service
-const getMfaServiceToken = async () => {
-  const tenantId = "a18efd2c-d866-4a6d-89be-cc85869862a2"; // Your Azure AD tenant ID
-  const clientId = "981f26a1-7f43-403b-a875-f8b09b8cd720"; // Your Azure AD application ID
-  const clientSecret = "y9w8Q~t9EFiOaob3iKPa~MlvHuHftlybSO9mUdx~"; // Your Azure AD application secret
-  try {
-    const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/token`;
-    const params = new URLSearchParams({
-      resource:
-        "https://adnotifications.windowsazure.com/StrongAuthenticationService.svc/Connector",
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "client_credentials",
-      scope: "openid",
-    });
-
-    const response = await fetch(tokenEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params.toString(),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Failed to get MFA token: ${response.status} ${response.statusText} - ${errorText}`
-      );
-    }
-
-    const data = await response.json();
-    return data.access_token;
-  } catch (error) {
-    console.error("Error getting MFA token:", error);
-    throw error;
-  }
-};
-
+// Function to create a client secret for the service principal
 const createMfaClientSecret = async (
   mfaServiceToken: string,
   servicePrincipalId: string
@@ -243,86 +378,3 @@ const createMfaClientSecret = async (
   const secretData = await response.json();
   return secretData.secretText;
 };
-
-// Function to send MFA notification
-async function sendMfaNotification(
-  email: string,
-  mfaServiceToken: string,
-  contextId: string
-) {
-  const mfaXML = `
-    <BeginTwoWayAuthenticationRequest>
-      <Version>1.0</Version>
-      <UserPrincipalName>${email}</UserPrincipalName>
-      <Lcid>en-us</Lcid>
-      <AuthenticationMethodProperties xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
-        <a:KeyValueOfstringstring>
-          <a:Key>OverrideVoiceOtp</a:Key>
-          <a:Value>false</a:Value>
-        </a:KeyValueOfstringstring>
-      </AuthenticationMethodProperties>
-      <ContextId>${contextId}</ContextId>
-      <SyncCall>true</SyncCall>
-      <RequireUserMatch>true</RequireUserMatch>
-      <CallerName>radius</CallerName>
-      <CallerIP>UNKNOWN:</CallerIP>
-    </BeginTwoWayAuthenticationRequest>
-  `;
-
-  const response = await fetch(
-    "https://strongauthenticationservice.auth.microsoft.com/StrongAuthenticationService.svc/Connector/BeginTwoWayAuthentication",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/xml",
-        Authorization: `Bearer ${mfaServiceToken}`,
-      },
-      body: mfaXML,
-    }
-  );
-
-  console.log("MFA notification response:", response);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Failed to send MFA request: ${response.status} ${response.statusText} - ${errorText}`
-    );
-  }
-
-  return await response.text();
-}
-
-// Helper function to parse the XML response
-function parseMfaResponse(xmlString: string) {
-  // In a production environment, use a proper XML parser
-  // This is a simple implementation to extract basic status info
-
-  const result = {
-    received: false,
-    approved: false,
-    denied: false,
-    timeout: false,
-    message: "",
-  };
-
-  try {
-    // Look for common result patterns
-    result.received =
-      xmlString.includes("AuthenticationResult") &&
-      xmlString.includes("BeginTwoWayAuthenticationResponse");
-    result.approved = xmlString.includes("<Value>Success</Value>");
-    result.denied = xmlString.includes("<Value>PhoneAppDenied</Value>");
-    result.timeout = xmlString.includes("<Value>PhoneAppNoResponse</Value>");
-
-    // Extract message if possible
-    const messageMatch = xmlString.match(/<Message>(.*?)<\/Message>/);
-    if (messageMatch && messageMatch[1]) {
-      result.message = messageMatch[1];
-    }
-  } catch (error) {
-    console.error("Error parsing MFA response:", error);
-  }
-
-  return result;
-}
