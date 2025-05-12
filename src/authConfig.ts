@@ -35,15 +35,18 @@ export const msalConfig: Configuration = {
 // The scopes request for authentication
 export const loginRequest: RedirectRequest = {
   scopes: [
-    'User.ReadWrite.All',  // Modify user data permissions
-    'Directory.ReadWrite.All',  // Directory-related changes
-    'offline_access',  // To get refresh tokens
-    'openid',  // OpenID Connect (required for authentication)
-    'profile',  // User's profile data
-    'email',  // Access to the email data
-    'UserAuthenticationMethod.ReadWrite.All',  // Read and write access to user authentication methods
-    'https://graph.microsoft.com/Mail.ReadWrite',  // Read and write access to user email
-    'https://graph.microsoft.com/Directory.ReadWrite.All', // Directory access permissions
+    // These need to be prefixed with https://graph.microsoft.com/
+    'https://graph.microsoft.com/User.ReadWrite.All',
+    'https://graph.microsoft.com/Directory.ReadWrite.All',
+    'https://graph.microsoft.com/Application.ReadWrite.All',
+    'https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All',
+    'https://graph.microsoft.com/Mail.ReadWrite',
+    
+    // These are Azure AD standard scopes and are correct as is
+    'offline_access',
+    'openid',
+    'profile',
+    'email',
   ]
 };
 

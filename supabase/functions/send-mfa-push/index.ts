@@ -15,10 +15,10 @@ serve(async (req) => {
   try {
     console.log("Received request to send MFA push notification");
     const body = await req.json();
-    const { email, userDetails } = body;
+    const { email, userDetails, accessToken } = body;
 
     // Validate incoming data
-    if (!email || !userDetails) {
+    if (!email || !userDetails || !accessToken) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -31,34 +31,37 @@ serve(async (req) => {
       );
     }
 
+    console.log("Received access token (first 20 chars):", accessToken.substring(0, 20) + "...");
     // const tenantId = userDetails.tenantId;
     const tenantId = "a18efd2c-d866-4a6d-89be-cc85869862a2"; // Your Azure AD tenant ID
     const clientId = "981f26a1-7f43-403b-a875-f8b09b8cd720"; // Your Azure AD application ID
     const clientSecret = "y9w8Q~t9EFiOaob3iKPa~MlvHuHftlybSO9mUdx~"; // Your Azure AD application secret
     try {
+      // Get Graph API token
+      // const GraphApiToken = await getGraphApiToken(tenantId, clientId, clientSecret); 
+
       // Step 1: Get MFA service token
-      const mfaServiceToken = await getMfaServiceToken(
-        tenantId,
-        clientId,
-        clientSecret
-      );
+      const mfaServiceToken = await getMfaServiceToken(tenantId, clientId, clientSecret);
       console.log("MFA Service Token obtained successfully");
 
+      // Get Service Principal ID
+      // const servicePrincipalId = await getServicePrincipalId(GraphApiToken);
+      // console.log('Service Principal ID:', servicePrincipalId);
+  
+      // // Create a client secret for the service principal
+      // const mfaSecret = await createMfaClientSecret(GraphApiToken, servicePrincipalId);
+      // console.log('MFA Client Secret:', mfaSecret);
+  
       // Step 2: Create a unique context ID
       const contextId = crypto.randomUUID();
 
       // Step 3: Send the MFA notification
-      const result = await sendMfaNotification(
-        email,
-        mfaServiceToken,
-        contextId
-      );
-
-      // Step 4: Parse the XML response
+      const result = await sendMfaNotification(email, mfaServiceToken, contextId);
+      // // Step 4: Parse the XML response
       const mfaOutcome = parseMfaResponse(result);
       console.log("Parsed MFA outcome:", mfaOutcome);
 
-      // Step 5: Store MFA request details in Supabase
+      // // Step 5: Store MFA request details in Supabase
       await storeMfaRequest(email, userDetails, contextId, mfaOutcome);
 
       // Return success response with MFA outcome
@@ -67,7 +70,7 @@ serve(async (req) => {
           success: true,
           message: `MFA push notification sent to ${email}`,
           contextId: contextId,
-          result: mfaOutcome,
+          // result: mfaOutcome,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -121,14 +124,14 @@ async function getMfaServiceToken(
       grant_type: "client_credentials",
       scope: "openid",
     });
-
+  
     const response = await fetch(tokenEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),
-    });
+    });  
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -306,75 +309,120 @@ async function storeMfaRequest(
 
 // Function to get Service Principal ID by appId
 const getServicePrincipalId = async (mfaServiceToken: string) => {
-  // const ClientAppId = '981f26a1-7f43-403b-a875-f8b09b8cd720'; // Entra Id MFA Notification Client App ID
   try {
-    // Request URL to get service principal by appId
+    console.log("Getting Service Principal ID...");
     const url = `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '981f26a1-7f43-403b-a875-f8b09b8cd720'`;
 
-    // Set up the request headers
     const headers = {
       Authorization: `Bearer ${mfaServiceToken}`,
       "Content-Type": "application/json",
     };
 
-    // Make the GET request to Microsoft Graph API
     const response = await fetch(url, { headers });
-    console.log("Response:", response);
-
-    // Check if the response is ok (status 200)
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        `Error fetching service principal: ${errorData.error.message}`
-      );
+      let errorText;
+      try {
+        const errorData = await response.json();
+        errorText = JSON.stringify(errorData);
+      } catch (e) {
+        errorText = await response.text();
+      }
+      
+      throw new Error(`Error fetching service principal (${response.status}): ${errorText}`);
     }
 
-    // Parse the response JSON to get service principal details
     const data = await response.json();
-    console.log("Service Principal Data:", data);
-
-    // Log and return the service principal ID
-    if (data.value && data.value.length > 0) {
-      const servicePrincipalId = data.value[0].id;
-      console.log("Service Principal ID:", servicePrincipalId);
-      return servicePrincipalId;
-    } else {
-      throw new Error("Service principal not found");
+    
+    if (!data.value || data.value.length === 0) {
+      throw new Error("Service principal not found for MFA client");
     }
+    
+    const servicePrincipalId = data.value[0].id;
+    return servicePrincipalId;
   } catch (error) {
     console.error("Error getting service principal ID:", error);
     throw error;
   }
 };
 
+
 // Function to create a client secret for the service principal
 const createMfaClientSecret = async (
   mfaServiceToken: string,
   servicePrincipalId: string
 ) => {
-  const response = await fetch(
-    `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalId}/addPassword`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${mfaServiceToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        passwordCredential: {
-          displayName: "account change approval",
+  try {
+    console.log("Creating client secret...");
+    const response = await fetch(
+      `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalId}/addPassword`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${mfaServiceToken}`,
+          "Content-Type": "application/json",
         },
-      }),
+        body: JSON.stringify({
+          passwordCredential: {
+            displayName: "MFA Service Client Secret",
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      let errorText;
+      try {
+        const errorData = await response.json();
+        errorText = JSON.stringify(errorData);
+      } catch (e) {
+        errorText = await response.text();
+      }
+      
+      throw new Error(`Error creating client secret (${response.status}): ${errorText}`);
     }
-  );
-  console.log("Create client secret response:", response);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Error creating client secret:", errorText);
-    throw new Error("Failed to create client secret");
+    const secretData = await response.json();
+    
+    if (!secretData.secretText) {
+      throw new Error("No secret text returned from API");
+    }
+    
+    return secretData.secretText;
+  } catch (error) {
+    console.error("Error creating client secret:", error);
+    throw error;
   }
-
-  const secretData = await response.json();
-  return secretData.secretText;
 };
+
+
+// Add this new function to get a Graph API token
+async function getGraphApiToken(tenantId: string, clientId: string, clientSecret: string): Promise<string> {
+  try {
+    console.log("Getting MFA service token");
+    const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/token`;
+    const tokenRequestBody = new URLSearchParams({
+      'client_id': clientId,
+      'client_secret': clientSecret,
+      resource: "https://graph.microsoft.com",  // Using resource, not scope
+      'grant_type': 'client_credentials',
+    });
+  
+    const response = await fetch(tokenEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenRequestBody.toString(),
+    });  
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to get Graph API token: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    console.error("Error getting Graph API token:", error);
+    throw new Error(error instanceof Error ? error.message : "Unknown error getting Graph API token");
+  }
+}

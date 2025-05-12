@@ -96,6 +96,15 @@ const ResetApprovalForm = () => {
         account: accounts[0],
       });
 
+      // const graphTokenRequest = {
+      //   scopes: ["https://graph.microsoft.com/.default"],
+      //   account: accounts[0]
+      // };
+      // const tokenResponse = await instance.acquireTokenSilent(graphTokenRequest);
+     
+      // console.log("Requesting token with specific scopes:", tokenResponse.scopes);
+
+
       // Decode the idToken to extract user details
       const decodedToken = jwtDecode(tokenResponse.idToken);
       console.log("Decoded Token:", decodedToken);
@@ -114,7 +123,7 @@ const ResetApprovalForm = () => {
       });
 
       // Send the push notification using the token and user details
-      await sendPushNotificationToUser(email, userDetails);
+      await sendPushNotificationToUser(email, userDetails, tokenResponse.idToken);
     } catch (error) {
       console.error("Error sending push notification:", error);
       updateRequestState({
@@ -132,7 +141,8 @@ const ResetApprovalForm = () => {
 
   const sendPushNotificationToUser = async (
     email: string,
-    userDetails: { name: string; email: string; tenantId?: string; userObjectId?: string }
+    userDetails: { name: string; email: string; tenantId?: string; userObjectId?: string },
+    accessToken: string 
   ) => {
     try {
       // Calling Supabase Edge Function to send the MFA push
@@ -144,7 +154,7 @@ const ResetApprovalForm = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, userDetails }),
+          body: JSON.stringify({ email, userDetails, accessToken }),
         }
       );
 
