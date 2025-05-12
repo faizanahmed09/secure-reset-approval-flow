@@ -102,7 +102,7 @@ const ResetApprovalForm = () => {
 
       // Extract relevant user details
       const userDetails = {
-        name: decodedToken.name, // User's full name
+        name: decodedToken.name, // User's name
         email: decodedToken.email, // User's email
         tenantId: decodedToken.tid, // Tenant ID
         userObjectId: decodedToken.oid, // User's Object ID
