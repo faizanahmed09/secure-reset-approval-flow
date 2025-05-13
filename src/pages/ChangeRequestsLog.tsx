@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -136,11 +135,11 @@ const ChangeRequestsLog = () => {
     return { from, to };
   };
 
-  // Use React Query for data fetching
+  // Use React Query for data fetching with updated options for v5
   const { data: changeRequests, isLoading, error, refetch } = useQuery({
     queryKey: ['changeRequests', filters],
     queryFn: fetchChangeRequests,
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData // Modern replacement for keepPreviousData
   });
 
   // Handle filter changes

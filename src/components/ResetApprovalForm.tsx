@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,15 @@ type ResetRequestState = {
   progress?: number; // For the progress bar during polling
 };
 
+// Interface for JWT token payload
+interface AzureJwtPayload {
+  name?: string;
+  preferred_username?: string;
+  tid?: string; // Tenant ID
+  oid?: string; // Object ID
+  [key: string]: any; // Allow for other properties
+}
+
 // Constants for polling
 const MAX_POLLS = 20;
 const POLLING_INTERVAL = 5000; // 5 seconds
@@ -59,7 +69,7 @@ const ResetApprovalForm = () => {
   const { toast } = useToast();
 
   // Helper function to update request state
-  const updateRequestState = (updates) => {
+  const updateRequestState = (updates: Partial<ResetRequestState>) => {
     setResetReq(prev => ({ ...prev, ...updates }));
   };
 
@@ -96,18 +106,16 @@ const ResetApprovalForm = () => {
         account: accounts[0],
       });
 
-
-
       // Decode the idToken to extract user details
-      const decodedToken = jwtDecode(tokenResponse.idToken);
+      const decodedToken = jwtDecode<AzureJwtPayload>(tokenResponse.idToken);
       console.log("Decoded Token:", decodedToken);
 
       // Extract relevant user details
       const userDetails = {
-        name: decodedToken.name, // User's name
-        email: decodedToken.preferred_username, // User's email
-        tenantId: decodedToken.tid, // Tenant ID
-        userObjectId: decodedToken.oid, // User's Object ID
+        name: decodedToken.name || "Unknown User", 
+        email: decodedToken.preferred_username || tokenResponse.account?.username || "unknown@email.com", 
+        tenantId: decodedToken.tid || "", 
+        userObjectId: decodedToken.oid || "", 
       };
 
       updateRequestState({ 
