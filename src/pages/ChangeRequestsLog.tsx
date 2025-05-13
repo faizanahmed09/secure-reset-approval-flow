@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -51,6 +52,8 @@ const ChangeRequestsLog = () => {
   useEffect(() => {
     const fetchTotalCount = async () => {
       try {
+        console.log("Fetching total count with filters:", filters);
+        
         let query = supabase
           .from('change_requests')
           .select('id', { count: 'exact', head: true });
@@ -70,9 +73,11 @@ const ChangeRequestsLog = () => {
         const { count, error } = await query;
         
         if (error) {
+          console.error("Error in count query:", error);
           throw error;
         }
         
+        console.log("Total count result:", count);
         setTotalCount(count || 0);
       } catch (error: any) {
         console.error('Error fetching count:', error);
@@ -90,6 +95,8 @@ const ChangeRequestsLog = () => {
   // Fetch change requests with filters, sorting, and pagination
   const fetchChangeRequests = async () => {
     try {
+      console.log("Fetching change requests with filters:", filters);
+      
       const { from, to } = getPaginationRange(filters.page, filters.pageSize);
       
       let query = supabase
@@ -113,9 +120,11 @@ const ChangeRequestsLog = () => {
       const { data, error } = await query;
       
       if (error) {
+        console.error("Error in data query:", error);
         throw error;
       }
       
+      console.log("Fetched data:", data);
       return data as ChangeRequest[];
     } catch (error: any) {
       console.error('Error fetching change requests:', error);
