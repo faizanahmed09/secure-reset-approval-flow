@@ -25,7 +25,7 @@ const ChangeRequestFilters = ({
 }: ChangeRequestFiltersProps) => {
   // Status options for the select dropdown
   const statusOptions = [
-    { value: "", label: "All Statuses" },
+    { value: "all", label: "All Statuses" },
     { value: "pending", label: "Pending" },
     { value: "approved", label: "Approved" },
     { value: "denied", label: "Denied" },
@@ -42,6 +42,11 @@ const ChangeRequestFilters = ({
     { value: "status", label: "Status" },
     { value: "user_email", label: "User Email" }
   ];
+
+  // Handle status filter change, mapping 'all' to empty string for the backend
+  const handleStatusChange = (value: string) => {
+    onFilterChange({ status: value === "all" ? "" : value });
+  };
 
   return (
     <Card>
@@ -60,8 +65,8 @@ const ChangeRequestFilters = ({
 
           {/* Status filter */}
           <Select
-            value={filters.status}
-            onValueChange={(value) => onFilterChange({ status: value })}
+            value={filters.status === "" ? "all" : filters.status}
+            onValueChange={handleStatusChange}
           >
             <SelectTrigger>
               <SelectValue placeholder="Filter by status" />
