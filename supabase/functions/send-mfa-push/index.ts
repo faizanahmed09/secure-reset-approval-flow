@@ -35,22 +35,17 @@ serve(async (req) => {
     // const tenantId = userDetails.tenantId;
     const tenantId = "a18efd2c-d866-4a6d-89be-cc85869862a2"; // Your Azure AD tenant ID
     const clientId = "981f26a1-7f43-403b-a875-f8b09b8cd720"; // Your Azure AD application ID
-    const clientSecret = "y9w8Q~t9EFiOaob3iKPa~MlvHuHftlybSO9mUdx~"; // Your Azure AD application secret
+    const clientSecret = "Lb48Q~YaTyw1Z2Y.N6DiFPg9arYQEg8rUt3kgbbD"; // right now using already created secret
     try {
-      // Get Graph API token
-      // const GraphApiToken = await getGraphApiToken(tenantId, clientId, clientSecret); 
+
+      // Step 1: Create a new client secret for the MFA application
+      // const clientSecret = await createMfaClientSecret(accessToken, tenantId);
+      // console.log("Client secret text:", clientSecret);
 
       // Step 1: Get MFA service token
       const mfaServiceToken = await getMfaServiceToken(tenantId, clientId, clientSecret);
       console.log("MFA Service Token obtained successfully");
 
-      // Get Service Principal ID
-      // const servicePrincipalId = await getServicePrincipalId(GraphApiToken);
-      // console.log('Service Principal ID:', servicePrincipalId);
-  
-      // // Create a client secret for the service principal
-      // const mfaSecret = await createMfaClientSecret(GraphApiToken, servicePrincipalId);
-      // console.log('MFA Client Secret:', mfaSecret);
   
       // Step 2: Create a unique context ID
       const contextId = crypto.randomUUID();
@@ -70,7 +65,7 @@ serve(async (req) => {
           success: true,
           message: `MFA push notification sent to ${email}`,
           contextId: contextId,
-          // result: mfaOutcome,
+          result: mfaOutcome,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -307,122 +302,64 @@ async function storeMfaRequest(
   }
 }
 
-// Function to get Service Principal ID by appId
-const getServicePrincipalId = async (mfaServiceToken: string) => {
-  try {
-    console.log("Getting Service Principal ID...");
-    const url = `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '981f26a1-7f43-403b-a875-f8b09b8cd720'`;
-
-    const headers = {
-      Authorization: `Bearer ${mfaServiceToken}`,
-      "Content-Type": "application/json",
-    };
-
-    const response = await fetch(url, { headers });
-    
-    if (!response.ok) {
-      let errorText;
-      try {
-        const errorData = await response.json();
-        errorText = JSON.stringify(errorData);
-      } catch (e) {
-        errorText = await response.text();
-      }
-      
-      throw new Error(`Error fetching service principal (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.value || data.value.length === 0) {
-      throw new Error("Service principal not found for MFA client");
-    }
-    
-    const servicePrincipalId = data.value[0].id;
-    return servicePrincipalId;
-  } catch (error) {
-    console.error("Error getting service principal ID:", error);
-    throw error;
-  }
-};
-
-
-// Function to create a client secret for the service principal
-const createMfaClientSecret = async (
-  mfaServiceToken: string,
-  servicePrincipalId: string
-) => {
-  try {
-    console.log("Creating client secret...");
-    const response = await fetch(
-      `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalId}/addPassword`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${mfaServiceToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          passwordCredential: {
-            displayName: "MFA Service Client Secret",
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      let errorText;
-      try {
-        const errorData = await response.json();
-        errorText = JSON.stringify(errorData);
-      } catch (e) {
-        errorText = await response.text();
-      }
-      
-      throw new Error(`Error creating client secret (${response.status}): ${errorText}`);
-    }
-
-    const secretData = await response.json();
-    
-    if (!secretData.secretText) {
-      throw new Error("No secret text returned from API");
-    }
-    
-    return secretData.secretText;
-  } catch (error) {
-    console.error("Error creating client secret:", error);
-    throw error;
-  }
-};
-
-
-// Add this new function to get a Graph API token
-async function getGraphApiToken(tenantId: string, clientId: string, clientSecret: string): Promise<string> {
-  try {
-    console.log("Getting MFA service token");
-    const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/token`;
-    const tokenRequestBody = new URLSearchParams({
-      'client_id': clientId,
-      'client_secret': clientSecret,
-      resource: "https://graph.microsoft.com",  // Using resource, not scope
-      'grant_type': 'client_credentials',
-    });
+// Add this function to your edge function
+async function createMfaClientSecret(accessToken: string, tenantId: string) {
+  // Step 1: Get the service principal ID for MFA application
+  const mfaAppId = "981f26a1-7f43-403b-a875-f8b09b8cd720";
   
-    const response = await fetch(tokenEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: tokenRequestBody.toString(),
-    });  
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to get Graph API token: ${response.status} ${response.statusText} - ${errorText}`);
+  console.log("Finding service principal for MFA client app...");
+  const spResponse = await fetch(
+    `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${mfaAppId}'`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     }
+  );
 
-    const data = await response.json();
-    return data.access_token;
-  } catch (error) {
-    console.error("Error getting Graph API token:", error);
-    throw new Error(error instanceof Error ? error.message : "Unknown error getting Graph API token");
+  if (!spResponse.ok) {
+    const errorData = await spResponse.text();
+    throw new Error(`Failed to get service principal: ${errorData}`);
   }
+
+  const spData = await spResponse.json();
+  
+  if (!spData.value || spData.value.length === 0) {
+    throw new Error("MFA application service principal not found in tenant");
+  }
+
+  const servicePrincipalId = spData.value[0].id;
+  console.log("Found service principal ID:", servicePrincipalId);
+
+  // Step 2: Create a new password credential (client secret)
+  const credentialParams = {
+    passwordCredential: {
+      displayName: "SaaS App MFA Client Secret",
+    }
+  };
+
+  console.log("Creating password credential...");
+  const createSecretResponse = await fetch(
+    `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalId}/addPassword`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentialParams),
+    }
+  );
+
+  if (!createSecretResponse.ok) {
+    const errorText = await createSecretResponse.text();
+    throw new Error(`Failed to create client secret: ${errorText}`);
+  }
+
+  const secretData = await createSecretResponse.json();
+  console.log("Client secret data:", secretData);
+
+  // Return the secret value
+  return secretData.secretText;
 }

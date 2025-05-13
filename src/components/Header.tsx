@@ -11,9 +11,9 @@ const Header = () => {
       case '/':
         return 'Azure AD Authentication';
       case '/reset-approval':
-        return 'Password Reset Approval';
+        return 'Change Request Approval';
       default:
-        return 'Secure Reset Approval Flow';
+        return 'Change Request Approval Flow';
     }
   };
 

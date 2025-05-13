@@ -96,13 +96,6 @@ const ResetApprovalForm = () => {
         account: accounts[0],
       });
 
-      // const graphTokenRequest = {
-      //   scopes: ["https://graph.microsoft.com/.default"],
-      //   account: accounts[0]
-      // };
-      // const tokenResponse = await instance.acquireTokenSilent(graphTokenRequest);
-     
-      // console.log("Requesting token with specific scopes:", tokenResponse.scopes);
 
 
       // Decode the idToken to extract user details
@@ -112,7 +105,7 @@ const ResetApprovalForm = () => {
       // Extract relevant user details
       const userDetails = {
         name: decodedToken.name, // User's name
-        email: decodedToken.email, // User's email
+        email: decodedToken.preferred_username, // User's email
         tenantId: decodedToken.tid, // Tenant ID
         userObjectId: decodedToken.oid, // User's Object ID
       };
@@ -123,7 +116,7 @@ const ResetApprovalForm = () => {
       });
 
       // Send the push notification using the token and user details
-      await sendPushNotificationToUser(email, userDetails, tokenResponse.idToken);
+      await sendPushNotificationToUser(email, userDetails, tokenResponse.accessToken);
     } catch (error) {
       console.error("Error sending push notification:", error);
       updateRequestState({
@@ -553,7 +546,7 @@ const processInitialResponse = (data, email) => {
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
-        <CardTitle className="text-center text-2xl">Reset Approval</CardTitle>
+        <CardTitle className="text-center text-2xl">Change Request</CardTitle>
         <CardDescription className="text-center text-gray-600">
           Enter the user's email to trigger MFA approval
         </CardDescription>
