@@ -54,6 +54,19 @@ const ChangeRequestsLog = () => {
       try {
         console.log("Fetching total count with filters:", filters);
         
+        // Basic query without filters first to check if we can get any data
+        let countQuery = supabase
+          .from('change_requests')
+          .select('id', { count: 'exact', head: true });
+        
+        const { count: basicCount, error: basicError } = await countQuery;
+        console.log("Basic count query result (no filters):", basicCount);
+        
+        if (basicError) {
+          console.error("Error in basic count query:", basicError);
+        }
+        
+        // Now try with filters
         let query = supabase
           .from('change_requests')
           .select('id', { count: 'exact', head: true });
@@ -77,7 +90,7 @@ const ChangeRequestsLog = () => {
           throw error;
         }
         
-        console.log("Total count result:", count);
+        console.log("Filtered count result:", count);
         setTotalCount(count || 0);
       } catch (error: any) {
         console.error('Error fetching count:', error);
@@ -92,11 +105,29 @@ const ChangeRequestsLog = () => {
     fetchTotalCount();
   }, [filters.search, filters.status, toast]);
 
+  // Calculate pagination range
+  const getPaginationRange = (page: number, pageSize: number) => {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    return { from, to };
+  };
+
   // Fetch change requests with filters, sorting, and pagination
   const fetchChangeRequests = async () => {
     try {
       console.log("Fetching change requests with filters:", filters);
       
+      // First, let's try a basic query to see if we can get any data
+      const basicQuery = supabase.from('change_requests').select('*').limit(1);
+      const { data: basicData, error: basicError } = await basicQuery;
+      
+      console.log("Basic query test result:", basicData);
+      
+      if (basicError) {
+        console.error("Error in basic data query:", basicError);
+      }
+      
+      // Now proceed with filtered query
       const { from, to } = getPaginationRange(filters.page, filters.pageSize);
       
       let query = supabase
@@ -135,13 +166,6 @@ const ChangeRequestsLog = () => {
       });
       return [];
     }
-  };
-
-  // Calculate pagination range
-  const getPaginationRange = (page: number, pageSize: number) => {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    return { from, to };
   };
 
   // Use React Query for data fetching with updated options for v5
