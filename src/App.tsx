@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import ResetApproval from "./pages/ResetApproval";
 import NotFound from "./pages/NotFound";
 import UsersComponent from "./components/UsersComponent";
+import ChangeRequestsLog from "./pages/ChangeRequestsLog";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/reset-approval" element={<ResetApproval />} />
           <Route path="/users" element={<UsersComponent />} />
+          <Route path="/change-requests-log" element={<ChangeRequestsLog />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

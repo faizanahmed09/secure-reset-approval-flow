@@ -3,7 +3,9 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AzureAuthForm from '@/components/AzureAuthForm';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react';
-import UsersComponent from '@/components/UsersComponent';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 
 const Index = () => {
   return (
@@ -23,6 +25,22 @@ const Index = () => {
               <AzureAuthForm />
             </UnauthenticatedTemplate>
             
+            <AuthenticatedTemplate>
+              <div className="flex flex-col gap-4">
+                <Link to="/reset-approval" className="w-full">
+                  <Button className="w-full">Start Password Reset Process</Button>
+                </Link>
+                <Link to="/users" className="w-full">
+                  <Button variant="outline" className="w-full">Manage Users</Button>
+                </Link>
+                <Link to="/change-requests-log" className="w-full">
+                  <Button variant="outline" className="w-full flex items-center">
+                    <FileText className="mr-2 h-4 w-4" />
+                    View Change Request Logs
+                  </Button>
+                </Link>
+              </div>
+            </AuthenticatedTemplate>
             
             <div className="bg-muted/50 p-4 rounded-md border">
               <h3 className="text-sm font-medium mb-2">About this system:</h3>
@@ -31,6 +49,7 @@ const Index = () => {
                 <li>• View users in your Azure Active Directory</li>
                 <li>• Initiate secure password reset requests</li>
                 <li>• Requires user approval via push notification</li>
+                <li>• Track change request history in logs</li>
               </ul>
             </div>
           </div>

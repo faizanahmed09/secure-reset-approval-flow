@@ -19,7 +19,6 @@ export type Database = {
           token: string | null
           token_expires_at: string | null
           updated_at: string
-          user_id: string
         }
         Insert: {
           client_id: string
@@ -30,7 +29,6 @@ export type Database = {
           token?: string | null
           token_expires_at?: string | null
           updated_at?: string
-          user_id: string
         }
         Update: {
           client_id?: string
@@ -41,13 +39,14 @@ export type Database = {
           token?: string | null
           token_expires_at?: string | null
           updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
       change_requests: {
         Row: {
-          approved_at: string | null
+          admin_email: string | null
+          admin_name: string | null
+          admin_object_id: string | null
           completed_at: string | null
           context_id: string | null
           created_at: string
@@ -56,10 +55,11 @@ export type Database = {
           status: string
           updated_at: string
           user_email: string
-          user_id: string
         }
         Insert: {
-          approved_at?: string | null
+          admin_email?: string | null
+          admin_name?: string | null
+          admin_object_id?: string | null
           completed_at?: string | null
           context_id?: string | null
           created_at?: string
@@ -68,10 +68,11 @@ export type Database = {
           status?: string
           updated_at?: string
           user_email: string
-          user_id: string
         }
         Update: {
-          approved_at?: string | null
+          admin_email?: string | null
+          admin_name?: string | null
+          admin_object_id?: string | null
           completed_at?: string | null
           context_id?: string | null
           created_at?: string
@@ -80,7 +81,6 @@ export type Database = {
           status?: string
           updated_at?: string
           user_email?: string
-          user_id?: string
         }
         Relationships: []
       }
