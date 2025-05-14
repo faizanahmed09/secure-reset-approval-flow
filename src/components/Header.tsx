@@ -9,7 +9,7 @@ const Header = () => {
   const getPageTitle = () => {
     switch(location.pathname) {
       case '/':
-        return 'Azure AD Authentication';
+        return '';
       case '/reset-approval':
         return 'Change Request Approval';
       default:

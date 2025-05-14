@@ -44,7 +44,7 @@ const Index = () => {
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold">Change Request Approval System</h2>
+              <h2 className="text-2xl font-bold">Change Request Approval System</h2>
               <p className="text-muted-foreground">
                 Secure change request approval approval system
               </p>

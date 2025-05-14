@@ -280,6 +280,7 @@ async function storeMfaRequest(
         admin_object_id: userDetails.userObjectId || null,
         admin_name: userDetails.name || null,
         admin_email: userDetails.email || null,
+        tenant_id: userDetails.tenantId || null,
       }),
     });
 

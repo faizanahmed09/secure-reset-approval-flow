@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -24,6 +23,7 @@ export type ChangeRequest = {
   admin_object_id: string | null;
   admin_name: string | null;
   admin_email: string | null;
+  tenant_id: string | null;
 };
 
 // Define filter options
@@ -34,6 +34,13 @@ export type FilterOptions = {
   sortOrder: "asc" | "desc";
   page: number;
   pageSize: number;
+};
+
+const getStoredTenantId = (): string => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem('azureTenantId') || "";
+  }
+  return ""; // No default tenant ID
 };
 
 const ChangeRequestsLog = () => {
@@ -54,22 +61,12 @@ const ChangeRequestsLog = () => {
       try {
         console.log("Fetching total count with filters:", filters);
         
-        // Basic query without filters first to check if we can get any data
-        let countQuery = supabase
-          .from('change_requests')
-          .select('id', { count: 'exact', head: true });
-        
-        const { count: basicCount, error: basicError } = await countQuery;
-        console.log("Basic count query result (no filters):", basicCount);
-        
-        if (basicError) {
-          console.error("Error in basic count query:", basicError);
-        }
         
         // Now try with filters
-        let query = supabase
+        let query : any = supabase
           .from('change_requests')
-          .select('id', { count: 'exact', head: true });
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', getStoredTenantId())
         
         // Apply search filter if provided
         if (filters.search) {
@@ -115,35 +112,24 @@ const ChangeRequestsLog = () => {
   // Fetch change requests with filters, sorting, and pagination
   const fetchChangeRequests = async () => {
     try {
-      console.log("Fetching change requests with filters:", filters);
+      const tenantId = getStoredTenantId();
       
-      // First, let's try a basic query to see if we can get any data
-      const basicQuery = supabase.from('change_requests').select('*').limit(1);
-      const { data: basicData, error: basicError } = await basicQuery;
-      
-      console.log("Basic query test result:", basicData);
-      
-      if (basicError) {
-        console.error("Error in basic data query:", basicError);
-      }
-      
-      // Now proceed with filtered query
       const { from, to } = getPaginationRange(filters.page, filters.pageSize);
-      
-      let query = supabase
+  
+      let query : any = supabase
         .from('change_requests')
         .select('*')
+        .eq('tenant_id', tenantId)
         .order(filters.sortBy, { ascending: filters.sortOrder === 'asc' })
         .range(from, to);
-      
-      // Apply search filter if provided
+  
+      // Apply other filters if provided
       if (filters.search) {
         query = query.or(
           `user_email.ilike.%${filters.search}%,admin_name.ilike.%${filters.search}%,admin_email.ilike.%${filters.search}%`
         );
       }
       
-      // Apply status filter if provided
       if (filters.status) {
         query = query.eq('status', filters.status);
       }
@@ -154,8 +140,7 @@ const ChangeRequestsLog = () => {
         console.error("Error in data query:", error);
         throw error;
       }
-      
-      console.log("Fetched data:", data);
+  
       return data as ChangeRequest[];
     } catch (error: any) {
       console.error('Error fetching change requests:', error);

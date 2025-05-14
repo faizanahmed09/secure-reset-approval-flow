@@ -164,10 +164,10 @@ const ChangeRequestTable = ({
           )}
         </TableCell>
         <TableCell>{formatDate(request.created_at)}</TableCell>
-        <TableCell>{formatDate(request.completed_at)}</TableCell>
+        <TableCell>{request.admin_name}</TableCell>
         <TableCell>
           <Button 
-            variant="ghost" 
+            variant="outline" 
             size="sm"
             onClick={() => showDetailView(request)}
           >
@@ -186,8 +186,8 @@ const ChangeRequestTable = ({
             <TableHead>User Email</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Notification</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Completed</TableHead>
+            <TableHead>Created At</TableHead>
+            <TableHead>Created By</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -257,6 +257,11 @@ const ChangeRequestTable = ({
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Context ID</h3>
                   <p className="text-sm font-mono">{selectedRequest.context_id || "—"}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Tenant ID</h3>
+                  <p className="text-sm font-mono">{selectedRequest.tenant_id || "—"}</p>
                 </div>
               </div>
               
