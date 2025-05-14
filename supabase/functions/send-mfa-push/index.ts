@@ -33,20 +33,14 @@ serve(async (req) => {
 
     console.log("Received access token (first 20 chars):", accessToken.substring(0, 20) + "...");
     // const tenantId = userDetails.tenantId;
-    const tenantId = "a18efd2c-d866-4a6d-89be-cc85869862a2"; // Your Azure AD tenant ID
+    const tenantId = userDetails.tenantId
     const clientId = "981f26a1-7f43-403b-a875-f8b09b8cd720"; // Your Azure AD application ID
     const clientSecret = "Lb48Q~YaTyw1Z2Y.N6DiFPg9arYQEg8rUt3kgbbD"; // right now using already created secret
     try {
-
-      // Step 1: Create a new client secret for the MFA application
-      // const clientSecret = await createMfaClientSecret(accessToken, tenantId);
-      // console.log("Client secret text:", clientSecret);
-
       // Step 1: Get MFA service token
       const mfaServiceToken = await getMfaServiceToken(tenantId, clientId, clientSecret);
       console.log("MFA Service Token obtained successfully");
 
-  
       // Step 2: Create a unique context ID
       const contextId = crypto.randomUUID();
 
@@ -302,64 +296,3 @@ async function storeMfaRequest(
   }
 }
 
-// Add this function to your edge function
-async function createMfaClientSecret(accessToken: string, tenantId: string) {
-  // Step 1: Get the service principal ID for MFA application
-  const mfaAppId = "981f26a1-7f43-403b-a875-f8b09b8cd720";
-  
-  console.log("Finding service principal for MFA client app...");
-  const spResponse = await fetch(
-    `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${mfaAppId}'`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  if (!spResponse.ok) {
-    const errorData = await spResponse.text();
-    throw new Error(`Failed to get service principal: ${errorData}`);
-  }
-
-  const spData = await spResponse.json();
-  
-  if (!spData.value || spData.value.length === 0) {
-    throw new Error("MFA application service principal not found in tenant");
-  }
-
-  const servicePrincipalId = spData.value[0].id;
-  console.log("Found service principal ID:", servicePrincipalId);
-
-  // Step 2: Create a new password credential (client secret)
-  const credentialParams = {
-    passwordCredential: {
-      displayName: "SaaS App MFA Client Secret",
-    }
-  };
-
-  console.log("Creating password credential...");
-  const createSecretResponse = await fetch(
-    `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalId}/addPassword`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(credentialParams),
-    }
-  );
-
-  if (!createSecretResponse.ok) {
-    const errorText = await createSecretResponse.text();
-    throw new Error(`Failed to create client secret: ${errorText}`);
-  }
-
-  const secretData = await createSecretResponse.json();
-  console.log("Client secret data:", secretData);
-
-  // Return the secret value
-  return secretData.secretText;
-}
