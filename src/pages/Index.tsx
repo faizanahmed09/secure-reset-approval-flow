@@ -2,12 +2,39 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AzureAuthForm from '@/components/AzureAuthForm';
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react';
+import { AuthenticatedTemplate, UnauthenticatedTemplate, useMsal } from '@azure/msal-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { FileText, LogOut } from 'lucide-react';
+import { clearAzureAuth } from '../authConfig';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
+  const { instance } = useMsal();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      // Log out from MSAL
+      instance.logoutRedirect().catch(console.error);
+
+      // Clear Azure auth-related items from localStorage/sessionStorage
+      clearAzureAuth();
+
+      toast({
+        title: "Logged Out Successfully",
+        description: "You've been logged out from Azure AD",
+      });
+    } catch (error: any) {
+      console.error("Error during logout:", error);
+      toast({
+        title: "Logout Error",
+        description: error.message || "An error occurred during logout",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -27,6 +54,17 @@ const Index = () => {
             
             <AuthenticatedTemplate>
               <div className="flex flex-col gap-4">
+                <div className="flex justify-end">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={handleLogout} 
+                    className="mb-2"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
                 <Link to="/reset-approval" className="w-full">
                   <Button className="w-full">Start Password Reset Process</Button>
                 </Link>

@@ -1,11 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest, graphConfig } from '../authConfig';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Users, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface AzureUser {
   id: string;
@@ -19,6 +20,7 @@ const UsersComponent = () => {
   const [users, setUsers] = useState<AzureUser[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (accounts.length > 0) {
@@ -78,36 +80,47 @@ const UsersComponent = () => {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Users className="h-6 w-6 text-blue-600" />
-          <span>Azure AD Users</span>
-        </CardTitle>
-        <CardDescription>Users from your Azure Active Directory</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-          </div>
-        ) : users.length > 0 ? (
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="p-4 border rounded-md bg-muted/30 flex flex-col">
-                <div className="font-medium">{user.displayName}</div>
-                <div className="text-sm text-muted-foreground">{user.userPrincipalName}</div>
-                {user.mail && <div className="text-sm text-muted-foreground">{user.mail}</div>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            No users found or insufficient permissions
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="container py-8">
+      <Button 
+        variant="outline" 
+        className="mb-6" 
+        onClick={() => navigate('/')}
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Home
+      </Button>
+      
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Users className="h-6 w-6 text-blue-600" />
+            <span>Azure AD Users</span>
+          </CardTitle>
+          <CardDescription>Users from your Azure Active Directory</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+          ) : users.length > 0 ? (
+            <div className="space-y-4">
+              {users.map((user) => (
+                <div key={user.id} className="p-4 border rounded-md bg-muted/30 flex flex-col">
+                  <div className="font-medium">{user.displayName}</div>
+                  <div className="text-sm text-muted-foreground">{user.userPrincipalName}</div>
+                  {user.mail && <div className="text-sm text-muted-foreground">{user.mail}</div>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No users found or insufficient permissions
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

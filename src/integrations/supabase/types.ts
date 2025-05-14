@@ -84,6 +84,45 @@ export type Database = {
         }
         Relationships: []
       }
+      mfa_secrets: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          expires_at: string
+          id: string
+          is_active: boolean
+          key_id: string | null
+          secret_value: string
+          tenant_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          key_id?: string | null
+          secret_value: string
+          tenant_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          key_id?: string | null
+          secret_value?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
