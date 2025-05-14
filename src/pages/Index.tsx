@@ -25,6 +25,8 @@ const Index = () => {
         title: "Logged Out Successfully",
         description: "You've been logged out from Azure AD",
       });
+
+      window.location.href = "/";
     } catch (error: any) {
       console.error("Error during logout:", error);
       toast({
@@ -42,9 +44,9 @@ const Index = () => {
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold">Password Reset Flow</h2>
+              <h2 className="text-3xl font-bold">Change Request Approval System</h2>
               <p className="text-muted-foreground">
-                Secure multi-factor password reset approval system
+                Secure change request approval approval system
               </p>
             </div>
             
@@ -54,19 +56,8 @@ const Index = () => {
             
             <AuthenticatedTemplate>
               <div className="flex flex-col gap-4">
-                <div className="flex justify-end">
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={handleLogout} 
-                    className="mb-2"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </Button>
-                </div>
                 <Link to="/reset-approval" className="w-full">
-                  <Button className="w-full">Start Password Reset Process</Button>
+                  <Button className="w-full">Start Change Request Process</Button>
                 </Link>
                 <Link to="/users" className="w-full">
                   <Button variant="outline" className="w-full">Manage Users</Button>
@@ -77,6 +68,17 @@ const Index = () => {
                     View Change Request Logs
                   </Button>
                 </Link>
+                <div className="flex justify-center items-center gap-2">
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={handleLogout} 
+                    className="w-full"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
               </div>
             </AuthenticatedTemplate>
             
@@ -85,7 +87,7 @@ const Index = () => {
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Authenticate using Azure AD credentials</li>
                 <li>• View users in your Azure Active Directory</li>
-                <li>• Initiate secure password reset requests</li>
+                <li>• Initiate secure change requests</li>
                 <li>• Requires user approval via push notification</li>
                 <li>• Track change request history in logs</li>
               </ul>

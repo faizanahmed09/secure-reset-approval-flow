@@ -16,33 +16,33 @@ const ResetApproval = () => {
       <main className="flex-1 container py-12">
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
-            <Button 
-              variant="outline" 
-              className="mb-4" 
-              onClick={() => navigate('/')}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
-            
             <AuthenticatedTemplate>
               <ResetApprovalForm />
             </AuthenticatedTemplate>
-            
+
             <UnauthenticatedTemplate>
               <div className="bg-muted/50 p-6 rounded-md border text-center">
                 <h3 className="font-medium mb-2">Authentication Required</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  You need to authenticate with Azure AD before accessing this page.
+                  You need to authenticate with Azure AD before accessing this
+                  page.
                 </p>
-                <Button onClick={() => navigate('/')}>
-                  Go to Login
-                </Button>
+                <Button onClick={() => navigate("/")}>Go to Login</Button>
               </div>
             </UnauthenticatedTemplate>
-          
           </div>
         </div>
+        {/* button to show to top left corner of page */}
+        <div className="fixed top-20 left-4 z-10">
+          <Button
+            variant="outline"
+            className="mb-4"
+            onClick={() => navigate("/")}
+            >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Button>
+        </div> 
       </main>
       <Footer />
     </div>
