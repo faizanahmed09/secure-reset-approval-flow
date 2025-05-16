@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +24,16 @@ import {
   LogOut,
 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
-import { loginRequest, clearAzureAuth } from "../authConfig";
+import { loginRequest, clearAzureAuth, graphConfig } from "../authConfig";
 import { Progress } from "@/components/ui/progress";
+import axios from "axios";
+
+interface AzureUser {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  mail?: string;
+}
 
 // Types
 type RequestStatus = 
@@ -66,7 +73,98 @@ const ResetApprovalForm = () => {
     email: "",
     status: "idle",
   });
+
+  // New states for users and filtered users dropdown
+  const [allUsers, setAllUsers] = useState<AzureUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<AzureUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const { toast } = useToast();
+  const fetchedUsersRef = useRef(false);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (accounts.length > 0 && !fetchedUsersRef.current) {
+      fetchedUsersRef.current = true;
+      fetchUsers();
+    } else if (accounts.length === 0) {
+      instance.loginRedirect(loginRequest);
+    }
+  }, [accounts]);
+
+  // Fetch Azure AD users
+  const fetchUsers = async () => {
+    try {
+      setUsersLoading(true);
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+
+      const response = await axios.get(graphConfig.graphUsersEndpoint, {
+        headers: {
+          Authorization: `Bearer ${tokenResponse.accessToken}`,
+        },
+      });
+
+      setAllUsers(response.data.value);
+      setFilteredUsers(response.data.value);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      toast({
+        title: "Error Fetching Users",
+        description: "Failed to fetch users from Azure AD",
+        variant: "destructive",
+      });
+
+      if (error.name === "InteractionRequiredAuthError") {
+        instance.acquireTokenRedirect(loginRequest);
+      }
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  // Update email input and filter dropdown list
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEmail(val);
+
+    if (!val) {
+      setFilteredUsers(allUsers);
+      setShowDropdown(false);
+      return;
+    }
+
+    const filtered = allUsers.filter((user) =>
+      user.userPrincipalName.toLowerCase().includes(val.toLowerCase())
+    );
+    setFilteredUsers(filtered);
+    setShowDropdown(true);
+  };
+
+  // When user clicks a dropdown item
+  const handleUserClick = (user: AzureUser) => {
+    setEmail(user.userPrincipalName);
+    setShowDropdown(false);
+  };
+
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Helper function to update request state
   const updateRequestState = (updates: Partial<ResetRequestState>) => {
@@ -171,9 +269,6 @@ const ResetApprovalForm = () => {
         return data;
       }
 
-      // Start polling for authentication result
-      startPollingForMFAStatus(email, data.contextId);
-      return data;
     } catch (error) {
       console.error("Error sending push notification:", error);
       updateRequestState({
@@ -191,7 +286,6 @@ const ResetApprovalForm = () => {
     }
   };
 
-  // Process initial MFA response and return whether polling is needed
 // Process initial MFA response and return whether polling is needed
 const processInitialResponse = (data, email) => {
   // Check for immediate errors in the response
@@ -229,7 +323,7 @@ const processInitialResponse = (data, email) => {
   if (data.result && data.result.approved) {
     updateRequestState({
       status: "approved",
-      message: "User has instantly approved the request. You can proceed with account changes.",
+      message: "User has approved the request. You can proceed with account changes.",
       contextId: data.contextId
     });
     return false;
@@ -263,109 +357,6 @@ const processInitialResponse = (data, email) => {
   
   return true;
 };
-
-  // Function to poll for authentication status
-  const startPollingForMFAStatus = (email: string, contextId: string) => {
-    let pollingCount = 0;
-
-    const pollStatus = async () => {
-      try {
-        pollingCount++;
-        
-        // Update progress bar
-        const progressValue = 60 + Math.min(35, (pollingCount / MAX_POLLS) * 40);
-        updateRequestState({ progress: progressValue });
-
-        if (pollingCount >= MAX_POLLS) {
-          updateRequestState({
-            status: "timeout",
-            message: "Request timed out. The user did not respond within the time limit."
-          });
-
-          toast({
-            title: "Request Timeout",
-            description: "The user did not respond within the time limit",
-            variant: "destructive",
-          });
-
-          return;
-        }
-
-        // In a real implementation, you'd make an API call to check the status
-        // For now, we'll simulate different responses
-        
-        // Simulate responses based on email patterns
-        if (email.includes("notfound")) {
-          updateRequestState({
-            status: "user_not_found",
-            message: `User "${email}" not found in Azure AD or does not have MFA set up.`
-          });
-          return;
-        }
-        
-        if (pollingCount >= 3) { // After a few polls, simulate a response
-          if (email.includes("approve")) {
-            // Simulate approval
-            updateRequestState({
-              status: "approved",
-              message: "User has approved the request. You can proceed with account changes."
-            });
-            
-            toast({
-              title: "Request Approved",
-              description: "The user has approved your request",
-              variant: "default",
-            });
-            return;
-          } else if (email.includes("deny")) {
-            // Simulate denial
-            updateRequestState({
-              status: "denied",
-              message: "User has denied the request. No changes will be made."
-            });
-            
-            toast({
-              title: "Request Denied",
-              description: "The user has denied your request",
-              variant: "destructive",
-            });
-            return;
-          } else if (email.includes("timeout")) {
-            // Simulate timeout
-            updateRequestState({
-              status: "timeout",
-              message: "Request timed out. The user did not respond within the time limit."
-            });
-            
-            toast({
-              title: "Request Timeout",
-              description: "The user did not respond within the time limit",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-        
-        // Continue polling
-        setTimeout(pollStatus, POLLING_INTERVAL);
-      } catch (error) {
-        console.error("Error polling for MFA status:", error);
-        updateRequestState({
-          status: "error",
-          message: "Failed to check approval status. Please try again."
-        });
-
-        toast({
-          title: "Status Check Failed",
-          description: "Failed to check approval status",
-          variant: "destructive",
-        });
-      }
-    };
-
-    // Start polling
-    setTimeout(pollStatus, POLLING_INTERVAL);
-  };
 
   const handleResetForm = () => {
     setResetReq({ email: "", status: "idle" });
@@ -562,24 +553,47 @@ const processInitialResponse = (data, email) => {
 
       <CardContent className="pt-6">
         {resetReq.status === "idle" ? (
-          <form onSubmit={handleResetRequest} className="space-y-4">
-            <div>
-              <Label htmlFor="email" className="text-gray-700">User Email</Label>
+          <form onSubmit={handleResetRequest} className="space-y-4" autoComplete="off">
+            <div className="relative" ref={dropdownRef}>
+              <Label htmlFor="email" className="text-gray-700">
+                User Email
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
                 placeholder="user@example.com"
                 className="mt-1"
                 required
+                autoComplete="off"
+                onFocus={() => {
+                  if (email) setShowDropdown(true);
+                }}
               />
-              {getHelpText()}
+              {/* Dropdown for filtered users */}
+              {showDropdown && filteredUsers.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded-md border bg-white shadow-lg">
+                  {filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="cursor-pointer px-3 py-2 hover:bg-blue-100"
+                      onClick={() => handleUserClick(user)}
+                    >
+                      <div className="font-medium">{user.displayName}</div>
+                      <div className="text-sm text-gray-500">{user.userPrincipalName}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showDropdown && filteredUsers.length === 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg px-3 py-2 text-sm text-gray-500">
+                  No users found
+                </div>
+              )}
             </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700"
-            >
+
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
               <Send className="mr-2 h-4 w-4" />
               Send Approval Request
             </Button>
@@ -595,7 +609,7 @@ const processInitialResponse = (data, email) => {
             The user will receive a push notification on their mobile device requesting approval.
           </p>
         )}
-        
+
         <div className="mt-6 pt-4 border-t w-full flex justify-center">
           <Button variant="destructive" onClick={handleLogout} size="sm">
             <LogOut className="mr-2 h-4 w-4" />

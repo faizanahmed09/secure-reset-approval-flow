@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useMsal } from '@azure/msal-react';
+import { useState, useEffect, useRef } from 'react';
+import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { loginRequest, graphConfig } from '../authConfig';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,32 +16,24 @@ interface AzureUser {
 }
 
 const UsersComponent = () => {
-  const { instance, accounts } = useMsal();
-  const [users, setUsers] = useState<AzureUser[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { instance, accounts, inProgress } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const fetchCalled = useRef(false);
 
   useEffect(() => {
-    if (accounts.length > 0) {
-      fetchUsers();
-    } else {
-      login();
+    if (inProgress === "none" && isAuthenticated && accounts.length > 0) {
+      if (!fetchCalled.current) {
+        fetchCalled.current = true;
+        fetchUsers();
+      }
+    } else if (inProgress === "none" && !isAuthenticated) {
+      instance.loginRedirect(loginRequest);
     }
-  }, [accounts]);
-
-  const login = async () => {
-    try {
-      await instance.loginRedirect(loginRequest);
-    } catch (error) {
-      console.error('Login failed:', error);
-      toast({
-        title: "Authentication Failed",
-        description: "Failed to authenticate with Azure AD",
-        variant: "destructive",
-      });
-    }
-  };
+  }, [inProgress, isAuthenticated, accounts]);
 
   const fetchUsers = async () => {
     try {
@@ -61,6 +53,7 @@ const UsersComponent = () => {
       toast({
         title: "Users Loaded",
         description: `Successfully loaded ${response.data.value.length} users from Azure AD`,
+        duration: 1500,
       });
     } catch (error: any) {
       console.error('Error fetching users:', error);
@@ -109,7 +102,6 @@ const UsersComponent = () => {
                 <div key={user.id} className="p-4 border rounded-md bg-muted/30 flex flex-col">
                   <div className="font-medium">{user.displayName}</div>
                   <div className="text-sm text-muted-foreground">{user.userPrincipalName}</div>
-                  {user.mail && <div className="text-sm text-muted-foreground">{user.mail}</div>}
                 </div>
               ))}
             </div>

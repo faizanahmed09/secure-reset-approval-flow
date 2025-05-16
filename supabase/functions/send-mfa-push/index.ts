@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // CORS headers
 const corsHeaders = {
@@ -13,7 +14,6 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Received request to send MFA push notification");
     const body = await req.json();
     const { email, userDetails, accessToken } = body;
 
@@ -31,15 +31,56 @@ serve(async (req) => {
       );
     }
 
-    console.log("Received access token (first 20 chars):", accessToken.substring(0, 20) + "...");
-    // const tenantId = userDetails.tenantId;
+    // Get the client secret from the database
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Server configuration error",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get the active secret for this tenant
+    const { data: secretData, error: secretError } = await supabase
+      .from("mfa_secrets")
+      .select("secret_value")
+      .eq("tenant_id", userDetails.tenantId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (secretError || !secretData) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "No valid MFA secret found for this tenant. Please generate one first.",
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const clientSecret = secretData.secret_value;
+
     const tenantId = userDetails.tenantId
-    const clientId = "981f26a1-7f43-403b-a875-f8b09b8cd720"; // Your Azure AD application ID
-    const clientSecret = "Lb48Q~YaTyw1Z2Y.N6DiFPg9arYQEg8rUt3kgbbD"; // right now using already created secret
+    const clientId = Deno.env.get("MFA_CLIENT_ID") || "";
+    
     try {
       // Step 1: Get MFA service token
       const mfaServiceToken = await getMfaServiceToken(tenantId, clientId, clientSecret);
-      console.log("MFA Service Token obtained successfully");
 
       // Step 2: Create a unique context ID
       const contextId = crypto.randomUUID();
@@ -48,7 +89,6 @@ serve(async (req) => {
       const result = await sendMfaNotification(email, mfaServiceToken, contextId);
       // // Step 4: Parse the XML response
       const mfaOutcome = parseMfaResponse(result);
-      console.log("Parsed MFA outcome:", mfaOutcome);
 
       // // Step 5: Store MFA request details in Supabase
       await storeMfaRequest(email, userDetails, contextId, mfaOutcome);
@@ -103,7 +143,6 @@ async function getMfaServiceToken(
   clientSecret: string
 ): Promise<string> {
   try {
-    console.log("Getting MFA service token");
     const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/token`;
     const params = new URLSearchParams({
       resource:
@@ -177,7 +216,6 @@ async function sendMfaNotification(
       }
     );
 
-    console.log("MFA notification response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -255,8 +293,6 @@ async function storeMfaRequest(
   }
 
   try {
-    console.log("Storing MFA request in database");
-
     // Determine appropriate status for the database
     let status = "pending";
     if (mfaOutcome.approved) status = "approved";
@@ -290,7 +326,6 @@ async function storeMfaRequest(
       throw new Error("Failed to store request data in database");
     }
 
-    console.log("Successfully stored MFA request with status:", status);
   } catch (error) {
     console.error("Error inserting request:", error);
     // We don't throw here since this is a non-critical operation
