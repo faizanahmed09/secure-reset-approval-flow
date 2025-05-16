@@ -43,7 +43,6 @@ const Index = () => {
             account: accounts[0]
           });
 
-          console.log("Checking MFA secret configuration...");
           const secretResult = await checkMfaSecret(
             tokenResponse.accessToken,
             tokenResponse.idToken

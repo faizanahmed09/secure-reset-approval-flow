@@ -59,8 +59,6 @@ const ChangeRequestsLog = () => {
   useEffect(() => {
     const fetchTotalCount = async () => {
       try {
-        console.log("Fetching total count with filters:", filters);
-        
         
         // Now try with filters
         let query : any = supabase

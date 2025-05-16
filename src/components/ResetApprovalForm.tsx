@@ -206,7 +206,6 @@ const ResetApprovalForm = () => {
 
       // Decode the idToken to extract user details
       const decodedToken = jwtDecode<AzureJwtPayload>(tokenResponse.idToken);
-      console.log("Decoded Token:", decodedToken);
 
       // Extract relevant user details
       const userDetails = {

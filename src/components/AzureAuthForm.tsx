@@ -36,7 +36,6 @@ const AzureAuthForm = () => {
     try {
       // Try to login with a popup
       const loginResponse = await instance.loginPopup(loginRequest);
-      console.log('Authentication successful:', loginResponse);
 
       // Store token in session storage
       sessionStorage.setItem('azureToken', loginResponse.accessToken);
