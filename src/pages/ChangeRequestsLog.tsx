@@ -85,6 +85,7 @@ const ChangeRequestsLog = () => {
           throw error;
         }
         
+        console.log("Filtered count result:", count);
         setTotalCount(count || 0);
       } catch (error: any) {
         console.error('Error fetching count:', error);
