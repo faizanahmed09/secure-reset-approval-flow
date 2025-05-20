@@ -124,11 +124,16 @@ async function createMfaClientSecret(accessToken, tenantId) {
 async function storeMfaSecret(tenantId, secretData, createdBy) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const encryptionKey = Deno.env.get("MFA_SECRET_ENCRYPTION_KEY") || tenantId; // Fallback to tenantId if no key defined
   if (!supabaseUrl || !supabaseServiceKey) {
     console.warn("Supabase credentials not configured, skipping database storage");
     return;
   }
   try {
+    // Encrypt the secret value
+    const encryptedSecretValue = await encryptData(secretData.secretValue, encryptionKey);
+    // Store the encrypted secret value
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     // Mark any existing active secrets for this tenant as inactive
     await supabase.from("mfa_secrets").update({
@@ -137,8 +142,8 @@ async function storeMfaSecret(tenantId, secretData, createdBy) {
     // Insert the new secret
     const { data, error } = await supabase.from("mfa_secrets").insert({
       tenant_id: tenantId,
-      client_id: "981f26a1-7f43-403b-a875-f8b09b8cd720",
-      secret_value: secretData.secretValue,
+      client_id: Deno.env.get("MFA_CLIENT_ID") || "",
+      secret_value: encryptedSecretValue,
       key_id: secretData.keyId,
       display_name: secretData.displayName,
       created_at: new Date().toISOString(),
@@ -154,4 +159,37 @@ async function storeMfaSecret(tenantId, secretData, createdBy) {
     console.error("Error storing MFA secret:", error);
     throw error;
   }
+}
+
+// Function to encrypt sensitive data
+async function encryptData(plaintext: string, secretKey: string) {
+  // Convert the secret key to a crypto key
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secretKey.padEnd(32, 'x').slice(0, 32)); // Ensure key is 32 bytes
+  
+  // Generate a random IV (Initialization Vector)
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  // Import the key
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+  
+  // Encrypt the data
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encoder.encode(plaintext)
+  );
+  
+  // Combine IV and encrypted data and convert to base64
+  const encryptedArray = new Uint8Array(iv.length + encryptedData.byteLength);
+  encryptedArray.set(iv, 0);
+  encryptedArray.set(new Uint8Array(encryptedData), iv.length);
+  
+  return btoa(String.fromCharCode(...encryptedArray));
 }

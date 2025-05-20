@@ -60,11 +60,45 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    if (secretError || !secretData) {
+    // More specific error messaging for missing secret
+    if (secretError) {
+      if (secretError.code === 'PGRST116') {
+        // This is the "no rows returned" error code from PostgREST
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "No MFA secret found for this tenant. Please generate one first by visiting the configuration page.",
+            error_code: "NO_MFA_SECRET"
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      } else {
+        // Other database errors
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "Database error when retrieving MFA secret.",
+            error_code: "DB_ERROR",
+            details: secretError.message
+          }),
+          {
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
+    // Also handle case where no error but data is empty
+    if (!secretData || !secretData.secret_value) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "No valid MFA secret found for this tenant. Please generate one first.",
+          message: "No valid MFA secret value found. Please generate a new secret.",
+          error_code: "EMPTY_SECRET"
         }),
         {
           status: 404,
@@ -73,12 +107,19 @@ serve(async (req) => {
       );
     }
 
-    const clientSecret = secretData.secret_value;
+    const encryted_clientSecret = secretData.secret_value;
 
     const tenantId = userDetails.tenantId
     const clientId = Deno.env.get("MFA_CLIENT_ID") || "";
     
     try {
+
+      // Get the encryption key from environment variable
+      const encryptionKey = Deno.env.get("MFA_SECRET_ENCRYPTION_KEY") || tenantId;
+
+      // Decrypt the secret
+      const clientSecret = await decryptData(encryted_clientSecret, encryptionKey);
+
       // Step 1: Get MFA service token
       const mfaServiceToken = await getMfaServiceToken(tenantId, clientId, clientSecret);
 
@@ -332,3 +373,35 @@ async function storeMfaRequest(
   }
 }
 
+// Function to decrypt sensitive data (used when retrieving the secret)
+async function decryptData(encryptedBase64: string, secretKey: string) {
+  // Convert the secret key to a crypto key
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const keyData = encoder.encode(secretKey.padEnd(32, 'x').slice(0, 32)); // Ensure key is 32 bytes
+  
+  // Convert base64 to array
+  const encryptedArray = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  
+  // Extract IV and encrypted data
+  const iv = encryptedArray.slice(0, 12);
+  const encryptedData = encryptedArray.slice(12);
+  
+  // Import the key
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+  
+  // Decrypt the data
+  const decryptedData = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encryptedData
+  );
+  
+  return decoder.decode(decryptedData);
+}
