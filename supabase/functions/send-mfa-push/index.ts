@@ -92,7 +92,7 @@ serve(async (req) => {
       }
     }
 
-    // Also handle case where no error but data is empty
+    // Also handle where no error but data is empty
     if (!secretData || !secretData.secret_value) {
       return new Response(
         JSON.stringify({
