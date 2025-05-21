@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMsal } from '@azure/msal-react';
-import { useNavigate } from 'react-router-dom';
+import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,6 @@ const AzureAuthForm = () => {
   const [showConfig, setShowConfig] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   useEffect(() => {
     // Check if Azure credentials are configured
@@ -47,7 +46,7 @@ const AzureAuthForm = () => {
       });
 
       // Redirect to reset approval page
-      navigate('/');
+      redirect('/');
       // navigate('/users');
 
     } catch (error: any) {

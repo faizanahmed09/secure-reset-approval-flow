@@ -1,14 +1,14 @@
-
+'use client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ResetApprovalForm from '@/components/ResetApprovalForm';
 import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 const ResetApproval = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -27,7 +27,7 @@ const ResetApproval = () => {
                   You need to authenticate with Azure AD before accessing this
                   page.
                 </p>
-                <Button onClick={() => navigate("/")}>Go to Login</Button>
+                <Button onClick={() => router.push("/")}>Go to Login</Button>
               </div>
             </UnauthenticatedTemplate>
           </div>
@@ -37,7 +37,7 @@ const ResetApproval = () => {
           <Button
             variant="outline"
             className="mb-4"
-            onClick={() => navigate("/")}
+            onClick={() => router.push("/")}
             >
             <ArrowLeft className="h-4 w-4" />
             Back to Home

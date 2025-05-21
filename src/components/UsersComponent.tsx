@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { loginRequest, graphConfig } from '../authConfig';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 interface AzureUser {
   id: string;
@@ -21,7 +22,7 @@ const UsersComponent = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const router = useRouter();
   const fetchCalled = useRef(false);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ const UsersComponent = () => {
       <Button 
         variant="outline" 
         className="mb-6" 
-        onClick={() => navigate('/')}
+        onClick={() => router.push('/')}
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Home
@@ -98,7 +99,7 @@ const UsersComponent = () => {
             </div>
           ) : users.length > 0 ? (
             <div className="space-y-4">
-              {users.map((user) => (
+              {users.map((user: AzureUser) => (
                 <div key={user.id} className="p-4 border rounded-md bg-muted/30 flex flex-col">
                   <div className="font-medium">{user.displayName}</div>
                   <div className="text-sm text-muted-foreground">{user.userPrincipalName}</div>

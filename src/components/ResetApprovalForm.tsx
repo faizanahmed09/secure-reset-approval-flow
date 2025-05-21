@@ -286,7 +286,7 @@ const ResetApprovalForm = () => {
   };
 
 // Process initial MFA response and return whether polling is needed
-const processInitialResponse = (data, email) => {
+const processInitialResponse = (data: any, email : string) => {
   // Check for immediate errors in the response
   if (data.result && !data.result.received) {
     updateRequestState({

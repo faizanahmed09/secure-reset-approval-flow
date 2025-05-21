@@ -1,13 +1,14 @@
+'use client'
 
 import { Shield } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { usePathname } from 'next/navigation';
 
 const Header = () => {
-  const location = useLocation();
+  const pathname = usePathname();
   
   // Determine page title based on route
   const getPageTitle = () => {
-    switch(location.pathname) {
+    switch(pathname) {
       case '/':
         return '';
       case '/reset-approval':

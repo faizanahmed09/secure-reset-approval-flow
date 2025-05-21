@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -7,7 +8,7 @@ import ChangeRequestTable from "@/components/ChangeRequestTable";
 import ChangeRequestFilters from "@/components/ChangeRequestFilters";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
 // Define types for the change request
@@ -179,7 +180,7 @@ const ChangeRequestsLog = () => {
       <Header />
       <main className="flex-1 container py-8">
         <div className="mb-8">
-          <Link to="/">
+          <Link href="/">
             <Button variant="outline" size="sm" className="mb-4">
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back to Home
