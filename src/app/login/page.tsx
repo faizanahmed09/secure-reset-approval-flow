@@ -1,6 +1,6 @@
-
+'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/router'; 
+import { useRouter } from 'next/navigation'; 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -13,11 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
-  const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const router = useRouter();
 
   // Handle login
   const handleLogin = async (e: React.FormEvent) => {
