@@ -1,6 +1,6 @@
-'use client';
+
 import { useState } from 'react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/router'; 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
+  const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -40,9 +41,9 @@ const Login = () => {
           title: "Login Successful",
           description: "You've been logged in successfully",
         });
-        redirect('/');
+        router.push('/');
       }
-    } catch (error:any) {
+    } catch (error: any) {
       toast({
         title: "Login Error",
         description: error.message,
@@ -79,7 +80,7 @@ const Login = () => {
           description: "Check your email for the confirmation link",
         });
       }
-    } catch (error:any) {
+    } catch (error : any) {
       toast({
         title: "Registration Error",
         description: error.message,
