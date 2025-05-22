@@ -18,13 +18,16 @@ const Index = () => {
   
   // Check if MFA has already been checked in this session
   const getMfaCheckedStatus = () => {
-    // @ts-ignore
-    return sessionStorage.getItem('mfaSecretChecked') === 'true';
+    if (typeof window !== 'undefined') {
+      return window.sessionStorage.getItem('mfaSecretChecked') === 'true';
+    }
   };
   
   // Set MFA checked status in session storage
   const setMfaCheckedStatus = (checked: boolean) => {
-    sessionStorage.setItem('mfaSecretChecked', checked.toString());
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('mfaSecretChecked', String(checked));
+    }
   };
 
   useEffect(() => {

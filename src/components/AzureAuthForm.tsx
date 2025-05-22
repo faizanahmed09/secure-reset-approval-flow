@@ -1,6 +1,5 @@
 
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { redirect } from 'next/navigation';
@@ -37,8 +36,10 @@ const AzureAuthForm = () => {
       const loginResponse = await instance.loginPopup(loginRequest);
 
       // Store token in session storage
-      sessionStorage.setItem('azureToken', loginResponse.accessToken);
-      sessionStorage.setItem('azureTokenExpiry', (Date.now() + 3600 * 1000).toString());
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('azureToken', loginResponse.accessToken);
+        window.sessionStorage.setItem('azureTokenExpiry', (Date.now() + 3600 * 1000).toString());
+      }
 
       toast({
         title: "Authentication Successful",

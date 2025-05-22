@@ -1,4 +1,4 @@
-
+'use client';
 import { useState } from "react";
 import { format } from "date-fns";
 import {
@@ -27,7 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChangeRequest, FilterOptions } from "@/pages/ChangeRequestsLog";
+import { ChangeRequest, FilterOptions } from "@/app/change-requests-log/page";
 
 interface ChangeRequestTableProps {
   changeRequests: ChangeRequest[];

@@ -60,9 +60,10 @@ export const graphConfig = {
 export const clearAzureAuth = () => {
   if (isClient) {
     // Clear tokens from sessionStorage
-    sessionStorage.removeItem('azureToken');
-    sessionStorage.removeItem('azureTokenExpiry');
-    
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('azureToken');
+      window.sessionStorage.removeItem('azureTokenExpiry');
+    }
     // Note: We don't clear the clientId and tenantId from localStorage
     // as those are configuration settings, not authentication state
   }
