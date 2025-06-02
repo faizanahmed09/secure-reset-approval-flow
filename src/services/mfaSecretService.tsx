@@ -13,6 +13,7 @@ export async function checkMfaSecret(accessToken: string, idToken: string) {
       email: decodedToken.preferred_username || null,
       tenantId: decodedToken.tid,
       userObjectId: decodedToken.oid,
+      clientId: decodedToken.aud || null,
     };
     
     // Call your edge function to check if a valid secret exists
@@ -24,7 +25,8 @@ export async function checkMfaSecret(accessToken: string, idToken: string) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          tenantId: userDetails.tenantId
+          tenantId: userDetails.tenantId,
+          clientId: userDetails.clientId,
         }),
       }
     );
@@ -65,6 +67,7 @@ async function generateNewMfaSecret(accessToken: string, userDetails: any) {
         },
         body: JSON.stringify({
           tenantId: userDetails.tenantId,
+          clientId: userDetails.clientId,
           accessToken,
           userDetails
         }),

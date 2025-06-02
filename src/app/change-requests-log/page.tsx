@@ -186,9 +186,9 @@ const ChangeRequestsLog = () => {
               Back to Home
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold">Change Requests Log</h1>
+          <h1 className="text-3xl font-bold">Verify User Request Logs</h1>
           <p className="text-muted-foreground mt-2">
-            View and manage recent change requests in the system
+            View and manage recent verify users requests in the system
           </p>
         </div>
 

@@ -15,9 +15,9 @@ serve(async (req: { method: string; json: () => any; })=>{
   }
   try {
     const body = await req.json();
-    const { tenantId, accessToken, userDetails } = body;
+    const { tenantId, clientId, accessToken, userDetails } = body;
     // Validate incoming data
-    if (!tenantId || !accessToken || !userDetails) {
+    if (!tenantId || !clientId || !accessToken || !userDetails) {
       return new Response(JSON.stringify({
         success: false,
         message: "Missing required parameters: tenantId, accessToken, or userDetails"
@@ -33,7 +33,7 @@ serve(async (req: { method: string; json: () => any; })=>{
       // Create the client secret
       const secretResult = await createMfaClientSecret(accessToken, tenantId);
       // Store the secret in Supabase
-      await storeMfaSecret(tenantId, secretResult, userDetails.email || "unknown");
+      await storeMfaSecret(tenantId, clientId, secretResult, userDetails.email || "unknown", accessToken);
       // Return success response
       return new Response(JSON.stringify({
         success: true,
@@ -93,10 +93,11 @@ async function createMfaClientSecret(accessToken: any, tenantId: any) {
     throw new Error("MFA application service principal not found in tenant");
   }
   const servicePrincipalId = spData.value[0].id;
+  
   // Step 2: Create a new password credential (client secret)
   const credentialParams = {
     passwordCredential: {
-      displayName: "SaaS App MFA Client Secret",
+      displayName: "AuthenPush",
       endDateTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
     }
   };
@@ -113,55 +114,126 @@ async function createMfaClientSecret(accessToken: any, tenantId: any) {
     throw new Error(`Failed to create client secret: ${errorText}`);
   }
   const secretData = await createSecretResponse.json();
+
   // Return the relevant secret information
   return {
     secretValue: secretData.secretText,
     keyId: secretData.keyId,
     displayName: secretData.displayName,
     expiresAt: secretData.endDateTime,
-    startDateTime: secretData.startDateTime
+    startDateTime: secretData.startDateTime,
+    servicePrincipalId: servicePrincipalId 
   };
 }
+
 // Function to store MFA secret in Supabase
-async function storeMfaSecret(tenantId: any, secretData: { secretValue: any; keyId: any; displayName: any; expiresAt: any; startDateTime?: any; }, createdBy: any) {
+async function storeMfaSecret(tenantId: any, clientId: any, secretData: { secretValue: any; keyId: any; displayName: any; expiresAt: any; startDateTime?: any; servicePrincipalId: any; }, createdBy: any, accessToken: any) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const encryptionKey = Deno.env.get("MFA_SECRET_ENCRYPTION_KEY") || tenantId; // Fallback to tenantId if no key defined
+  const encryptionKey = Deno.env.get("MFA_SECRET_ENCRYPTION_KEY") || tenantId;
+
   if (!supabaseUrl || !supabaseServiceKey) {
     console.warn("Supabase credentials not configured, skipping database storage");
     return;
   }
+  
   try {
-    // Encrypt the secret value
-    const encryptedSecretValue = await encryptData(secretData.secretValue, encryptionKey);
-    // Store the encrypted secret value
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    // Mark any existing active secrets for this tenant as inactive
-    await supabase.from("mfa_secrets").update({
-      is_active: false
-    }).eq("tenant_id", tenantId).eq("is_active", true);
-    // Insert the new secret
-    const { data, error } = await supabase.from("mfa_secrets").insert({
-      tenant_id: tenantId,
-      client_id: Deno.env.get("MFA_CLIENT_ID") || "",
-      secret_value: encryptedSecretValue,
-      key_id: secretData.keyId,
-      display_name: secretData.displayName,
-      created_at: new Date().toISOString(),
-      expires_at: secretData.expiresAt,
-      created_by: createdBy,
-      is_active: true
-    }).select("id");
-    if (error) {
-      console.error("Error storing MFA secret:", error);
+    
+    // Step 1: Get existing secret for this client_id and tenant_id 
+    const { data: existingSecret, error: fetchError } = await supabase
+      .from("mfa_secrets")
+      .select("id, key_id, sp_id")
+      .eq("client_id", clientId)
+      .eq("tenant_id", tenantId)
+      .single(); // Use single() since there should be only one
+    
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error("Error fetching existing secret:", fetchError);
+    }
+    
+    // Step 2: If there's an existing secret, delete it from Azure first
+    if (existingSecret && existingSecret.key_id && existingSecret.sp_id) {
+      await deleteSecretFromAzure(accessToken, existingSecret.key_id, existingSecret.sp_id);
+      
+      // Delete the old secret from database
+      const { error: deleteError } = await supabase
+        .from("mfa_secrets")
+        .delete()
+        .eq("id", existingSecret.id);
+      
+      if (deleteError) {
+        console.error("Error deleting old secret from database:", deleteError);
+        // Continue anyway - we'll insert the new one
+      }
+    }
+    
+    // Step 3: Encrypt and store the new secret
+    const encryptedSecretValue = await encryptData(secretData.secretValue, encryptionKey);
+    
+    // Step 4: Insert the new secret
+    const { data: newSecretData, error: insertError } = await supabase
+      .from("mfa_secrets")
+      .insert({
+        tenant_id: tenantId,
+        client_id: clientId,
+        secret_value: encryptedSecretValue,
+        key_id: secretData.keyId,
+        display_name: secretData.displayName,
+        created_at: new Date().toISOString(),
+        expires_at: secretData.expiresAt,
+        created_by: createdBy,
+        sp_id: secretData.servicePrincipalId,
+      })
+      .select("id");
+    
+    if (insertError) {
+      console.error("Error storing MFA secret:", insertError);
       throw new Error("Failed to store MFA secret in database");
     }
+    
+    
   } catch (error) {
-    console.error("Error storing MFA secret:", error);
+    console.error("Error in storeMfaSecret:", error);
     throw error;
   }
 }
+
+// Function to delete a secret from Azure (optimized version - no API call needed)
+async function deleteSecretFromAzure(accessToken: any, keyId: string, servicePrincipalId: string) {
+  if (!keyId || !servicePrincipalId) {
+    console.warn("Missing keyId or servicePrincipalId for Azure secret deletion");
+    return;
+  }
+  
+  try {
+    
+    // Delete the password credential directly using stored service principal ID
+    const deleteResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalId}/removePassword`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          keyId: keyId
+        })
+      }
+    );
+    
+    if (!deleteResponse.ok) {
+      const errorText = await deleteResponse.text();
+      console.error(`Failed to delete secret ${keyId} from Azure:`, errorText);
+      // Don't throw here - we want to continue with database operations
+    }
+    
+  } catch (error) {
+    console.error(`Error deleting secret ${keyId} from Azure:`, error);
+  }
+}
+
 
 // Function to encrypt sensitive data
 async function encryptData(plaintext: string, secretKey: string) {

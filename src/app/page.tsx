@@ -6,15 +6,17 @@ import AzureAuthForm from '@/components/AzureAuthForm';
 import { AuthenticatedTemplate, UnauthenticatedTemplate, useMsal } from '@azure/msal-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link'
-import { FileText, LogOut, Loader2 } from 'lucide-react';
+import { FileText, LogOut, Loader2, Users, ArrowRight, Shield } from 'lucide-react';
 import { clearAzureAuth } from '../authConfig';
 import { useToast } from '@/hooks/use-toast';
 import { checkMfaSecret } from '../services/mfaSecretService';
+import { MfaConfigLoader, BeautifulLoader } from '@/loader';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
   const { toast } = useToast();
   const [checkingMfa, setCheckingMfa] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   
   // Check if MFA has already been checked in this session
   const getMfaCheckedStatus = () => {
@@ -29,6 +31,18 @@ const Index = () => {
       window.sessionStorage.setItem('mfaSecretChecked', String(checked));
     }
   };
+
+  // Handle initial loading state
+  useEffect(() => {
+    // Wait for MSAL to finish initializing
+    if (inProgress === 'none') {
+      // Add a small delay to prevent flash
+      const timer = setTimeout(() => {
+        setIsInitializing(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [inProgress]);
 
   useEffect(() => {
     const mfaAlreadyChecked = getMfaCheckedStatus();
@@ -55,7 +69,6 @@ const Index = () => {
 
           // If a new secret was created, wait for propagation
           if (secretResult.newlyCreated) {
-
             // Wait for secret propagation
             await new Promise(resolve => setTimeout(resolve, 4000));
           }
@@ -109,6 +122,24 @@ const Index = () => {
   // Check the current status from sessionStorage for rendering decisions
   const isMfaCheckComplete = !checkingMfa && getMfaCheckedStatus();
 
+
+  // Show initial loader while MSAL is initializing or content is not ready
+  if (isInitializing || inProgress === 'startup' || inProgress === 'handleRedirect') {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 container py-12">
+          <div className="flex flex-col items-center">
+            <div className="max-w-md w-full">
+              <BeautifulLoader />
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -116,9 +147,9 @@ const Index = () => {
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">Change Request Approval System</h2>
+              <h2 className="text-2xl font-bold">User Verification System</h2>
               <p className="text-muted-foreground">
-                Secure change request approval system
+                Secure user verification system
               </p>
             </div>
             
@@ -128,25 +159,25 @@ const Index = () => {
             
             <AuthenticatedTemplate>
               {checkingMfa ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                  <h3 className="text-lg font-medium">Configuring Secure Access</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    We're setting up secure access for your account. This may take a few moments...
-                  </p>
-                </div>
+                <MfaConfigLoader />
               ) : (
                 <div className="flex flex-col gap-4">
                   <Link href="/reset-approval" className="w-full">
-                    <Button className="w-full">Start Change Request Process</Button>
+                    <Button className="w-full">
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Start Verify User Process
+                    </Button>
                   </Link>
                   <Link href="/users" className="w-full">
-                    <Button variant="outline" className="w-full">Manage Users</Button>
+                    <Button variant="outline" className="w-full">
+                    <Users className="mr-2 h-4 w-4" />
+                      Manage Users
+                    </Button>
                   </Link>
                   <Link href="/change-requests-log" className="w-full">
                     <Button variant="outline" className="w-full flex items-center">
                       <FileText className="mr-2 h-4 w-4" />
-                      View Change Request Logs
+                      View Verify User Request Logs
                     </Button>
                   </Link>
                   <div className="flex justify-center items-center gap-2">
@@ -169,9 +200,9 @@ const Index = () => {
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Authenticate using Azure AD credentials</li>
                 <li>• View users in your Azure Active Directory</li>
-                <li>• Initiate secure change requests</li>
+                <li>• Initiate secure verify user process</li>
                 <li>• Requires user approval via push notification</li>
-                <li>• Track change request history in logs</li>
+                <li>• Track verify user request history in logs</li>
               </ul>
             </div>
           </div>

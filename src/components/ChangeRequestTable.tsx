@@ -132,7 +132,7 @@ const ChangeRequestTable = ({
       return (
         <TableRow>
           <TableCell colSpan={6} className="h-32 text-center">
-            No change requests found.
+            No requests found.
           </TableCell>
         </TableRow>
       );
@@ -147,6 +147,7 @@ const ChangeRequestTable = ({
             : "hover:bg-muted/50"
         }
       >
+        <TableCell>{formatDate(request.created_at)}</TableCell>
         <TableCell className="font-medium">{request.user_email}</TableCell>
         <TableCell>
           {getStatusBadge(request.status)}
@@ -163,7 +164,6 @@ const ChangeRequestTable = ({
             "No"
           )}
         </TableCell>
-        <TableCell>{formatDate(request.created_at)}</TableCell>
         <TableCell>{request.admin_name}</TableCell>
         <TableCell>
           <Button 
@@ -183,11 +183,11 @@ const ChangeRequestTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User Email</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>User</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Notification</TableHead>
-            <TableHead>Created At</TableHead>
-            <TableHead>Created By</TableHead>
+            <TableHead>Push by</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -225,9 +225,9 @@ const ChangeRequestTable = ({
       <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Change Request Details</DialogTitle>
+            <DialogTitle>Verify User Request Details</DialogTitle>
             <DialogDescription>
-              Complete information about this change request
+              Complete information about this verify user request.
             </DialogDescription>
           </DialogHeader>
           

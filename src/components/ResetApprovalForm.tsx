@@ -43,6 +43,7 @@ type RequestStatus =
   | "denied" 
   | "timeout" 
   | "user_not_found" 
+  | "mfa_not_configured"
   | "error";
 
 type ResetRequestState = {
@@ -82,6 +83,8 @@ const ResetApprovalForm = () => {
   const { toast } = useToast();
   const fetchedUsersRef = useRef(false);
 
+  // Add AbortController ref to manage request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -166,8 +169,12 @@ const ResetApprovalForm = () => {
     };
   }, []);
 
-  // Helper function to update request state
+  // Helper function to update request state (with abort check)
   const updateRequestState = (updates: Partial<ResetRequestState>) => {
+    // Only update state if the request hasn't been cancelled
+    if (abortControllerRef.current && abortControllerRef.current.signal.aborted) {
+      return;
+    }
     setResetReq(prev => ({ ...prev, ...updates }));
   };
 
@@ -184,6 +191,9 @@ const ResetApprovalForm = () => {
       });
       return;
     }
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
 
     updateRequestState({ 
       email, 
@@ -204,6 +214,11 @@ const ResetApprovalForm = () => {
         account: accounts[0],
       });
 
+      // Check if request was cancelled
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       // Decode the idToken to extract user details
       const decodedToken = jwtDecode<AzureJwtPayload>(tokenResponse.idToken);
 
@@ -223,6 +238,11 @@ const ResetApprovalForm = () => {
       // Send the push notification using the token and user details
       await sendPushNotificationToUser(email, userDetails, tokenResponse.accessToken);
     } catch (error) {
+      // Don't show error if request was cancelled
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       console.error("Error sending push notification:", error);
       updateRequestState({
         status: "error",
@@ -243,6 +263,11 @@ const ResetApprovalForm = () => {
     accessToken: string 
   ) => {
     try {
+      // Check if request was cancelled before making the API call
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       // Calling Supabase Edge Function to send the MFA push
       const supabaseUrl = "https://lbyvutzdimidlzgbjstz.supabase.co";
       const response = await fetch(
@@ -253,8 +278,14 @@ const ResetApprovalForm = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ email, userDetails, accessToken }),
+          signal: abortControllerRef.current?.signal, // Pass abort signal to fetch
         }
       );
+
+      // Check if request was cancelled after fetch
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -269,6 +300,17 @@ const ResetApprovalForm = () => {
       }
 
     } catch (error) {
+      // Don't handle error if request was cancelled
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return;
+      }
+
+      // Don't update state if request was cancelled
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       console.error("Error sending push notification:", error);
       updateRequestState({
         status: "error",
@@ -287,6 +329,11 @@ const ResetApprovalForm = () => {
 
 // Process initial MFA response and return whether polling is needed
 const processInitialResponse = (data: any, email : string) => {
+  // Check if request was cancelled
+  if (abortControllerRef.current?.signal.aborted) {
+    return false;
+  }
+
   // Check for immediate errors in the response
   if (data.result && !data.result.received) {
     updateRequestState({
@@ -300,10 +347,47 @@ const processInitialResponse = (data: any, email : string) => {
   if (data.result && data.result.message && data.result.message.includes("user not found")) {
     updateRequestState({
       status: "user_not_found",
-      message: `User "${email}" not found in your organization or does not have MFA set up.`,
+      message: `User "${email}" not found in your organization.`,
       contextId: data.contextId
     });
     return false;
+  }
+
+  // NEW: Check for "No default authentication method" error
+  if (data.result && data.result.message && 
+      (data.result.message.includes("No default authentication method") || 
+       data.result.message.includes("authentication method is set"))) {
+    updateRequestState({
+      status: "mfa_not_configured",
+      message: `User "${email}" exists but does not have MFA configured. Please set up multi-factor authentication for this user first.`,
+      contextId: data.contextId
+    });
+    return false;
+  }
+
+  // NEW: Check for other MFA configuration errors
+  if (data.result && data.result.received && 
+      !data.result.approved && !data.result.denied && !data.result.timeout &&
+      data.result.message && data.result.message.trim() !== "") {
+    // This catches cases where the request was received but failed due to MFA setup issues
+    updateRequestState({
+      status: "mfa_not_configured", 
+      message: `MFA configuration issue: ${data.result.message}`,
+      contextId: data.contextId
+    });
+    return false;
+  }
+
+  // Check if user has SMS MFA but we need push notification
+  if (data.result && data.result.received && data.result.message && 
+      (data.result.message.includes("SMS MFA configured") || 
+      data.result.message.includes("push notifications are not available"))) {
+    updateRequestState({
+      status: "mfa_not_configured",
+      message: `User "${email}" has SMS-based MFA configured. Push notifications are only available for users with Microsoft Authenticator app or similar push-capable MFA methods.`,
+      contextId: data.contextId
+    });
+  return false;
   }
   
   // Check for tenant permission errors even when success is true
@@ -358,12 +442,25 @@ const processInitialResponse = (data: any, email : string) => {
 };
 
   const handleResetForm = () => {
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Reset state
     setResetReq({ email: "", status: "idle" });
     setEmail("");
   };
 
   const handleLogout = async () => {
     try {
+      // Cancel any ongoing request before logout
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
       // Log out from MSAL
       instance.logoutRedirect().catch(console.error);
 
@@ -386,6 +483,15 @@ const processInitialResponse = (data: any, email : string) => {
       });
     }
   };
+
+  // Cleanup AbortController on component unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const renderStatus = () => {
     switch (resetReq.status) {
@@ -489,6 +595,31 @@ const processInitialResponse = (data: any, email : string) => {
             <p className="text-gray-600 text-center mb-4">
               {resetReq.message || `User "${resetReq.email}" was not found in Azure AD or does not have MFA set up.`}
             </p>
+            <Button 
+              variant="outline"
+              onClick={handleResetForm}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Another Email
+            </Button>
+          </div>
+        );
+
+      case "mfa_not_configured":
+        return (
+          <div className="mt-6 p-6 border rounded-lg bg-yellow-50 flex flex-col items-center">
+            <div className="w-16 h-16 mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-yellow-600" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">MFA Not Configured</h3>
+            <p className="text-gray-600 text-center mb-4">
+              {resetReq.message || `User "${resetReq.email}" exists but does not have MFA set up.`}
+            </p>
+            <div className="bg-yellow-100 p-3 rounded-md mb-4 max-w-sm">
+              <p className="text-sm text-yellow-800 text-center">
+                Ask the user to set up MFA in their Microsoft account settings before trying again.
+              </p>
+            </div>
             <Button 
               variant="outline"
               onClick={handleResetForm}

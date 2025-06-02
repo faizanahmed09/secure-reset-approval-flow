@@ -56,7 +56,6 @@ serve(async (req) => {
       .from("mfa_secrets")
       .select("secret_value")
       .eq("tenant_id", userDetails.tenantId)
-      .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
@@ -293,22 +292,49 @@ function parseMfaResponse(xmlString: string) {
       xmlString.includes("AuthenticationResult") &&
       xmlString.includes("BeginTwoWayAuthenticationResponse");
 
-    // Check for common status patterns
-    result.approved = xmlString.includes("<Value>Success</Value>");
-    result.denied = xmlString.includes("<Value>PhoneAppDenied</Value>");
-    result.timeout = xmlString.includes("<Value>PhoneAppNoResponse</Value>");
+    // Extract the AuthenticationResult value
+    const authResultMatch = xmlString.match(/<AuthenticationResult>(.*?)<\/AuthenticationResult>/);
+    const authResult = authResultMatch ? authResultMatch[1] : "";
+
+    // Extract the Result Value
+    const resultValueMatch = xmlString.match(/<Value>(.*?)<\/Value>/);
+    const resultValue = resultValueMatch ? resultValueMatch[1] : "";
+
+    console.log("Auth Result:", authResult, "Result Value:", resultValue);
+
+    // ONLY approve if AuthenticationResult is "true" (actual push approval)
+    result.approved = authResult === "true" || authResult === "True";
+    
+    // Check for denial patterns
+    result.denied = xmlString.includes("<Value>PhoneAppDenied</Value>") || 
+                   xmlString.includes("<Value>Denied</Value>");
+    
+    // Check for timeout patterns  
+    result.timeout = xmlString.includes("<Value>PhoneAppNoResponse</Value>") ||
+                    xmlString.includes("<Value>Timeout</Value>");
+
+    // If Result Value is "Success" but AuthenticationResult is "challenge", 
+    // it means SMS was sent (not what we want for push notifications)
+    const isSmsChallenge = resultValue === "Success" && authResult === "challenge";
 
     // Extract message if possible
     const messageMatch = xmlString.match(/<Message>(.*?)<\/Message>/);
-    if (messageMatch && messageMatch[1]) {
+    if (messageMatch && messageMatch[1] && messageMatch[1] !== "null") {
       result.message = messageMatch[1];
     } else if (result.approved) {
-      result.message = "User approved the request";
+      result.message = "User approved the request via push notification";
     } else if (result.denied) {
       result.message = "User denied the request";
     } else if (result.timeout) {
       result.message = "Request timed out - no response from user";
+    } else if (isSmsChallenge) {
+      result.message = "User has SMS MFA configured, but push notifications are not available for this user";
+    } else {
+      result.message = "Push notification not supported for this user's MFA configuration";
     }
+
+    console.log("Parsed MFA result:", result);
+
   } catch (error) {
     console.error("Error parsing MFA response:", error);
     result.message = "Error parsing MFA response";

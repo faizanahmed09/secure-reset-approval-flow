@@ -6,8 +6,8 @@ const Footer = () => {
     <footer className="w-full py-6 border-t mt-auto">
       <div className="container flex flex-col items-center justify-center gap-2">
         <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-azure" />
-          <span className="text-sm font-medium">Secure Reset Approval Flow</span>
+          <img src="/logo.png" alt="Authenpush Logo" className="h-7 w-7" />
+          <span className="text-sm font-medium">Authenpush</span>
         </div>
         <p className="text-xs text-muted-foreground">
           &copy; {new Date().getFullYear()} Your Organization. All rights reserved.

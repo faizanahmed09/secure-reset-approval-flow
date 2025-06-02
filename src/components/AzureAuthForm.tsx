@@ -47,7 +47,7 @@ const AzureAuthForm = () => {
       });
 
       // Redirect to reset approval page
-      redirect('/');
+      // redirect('/');
       // navigate('/users');
 
     } catch (error: any) {
