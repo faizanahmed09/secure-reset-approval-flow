@@ -37,7 +37,6 @@ const ChangeRequestFilters = ({
   // Sort options for the select dropdown
   const sortOptions = [
     { value: "created_at", label: "Created Date" },
-    { value: "updated_at", label: "Updated Date" },
     { value: "completed_at", label: "Completed Date" },
     { value: "status", label: "Status" },
     { value: "user_email", label: "User Email" }

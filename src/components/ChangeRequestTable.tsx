@@ -151,9 +151,6 @@ const ChangeRequestTable = ({
         <TableCell className="font-medium">{request.user_email}</TableCell>
         <TableCell>
           {getStatusBadge(request.status)}
-          <div className="text-xs text-muted-foreground mt-1">
-            {formatDate(request.updated_at)}
-          </div>
         </TableCell>
         <TableCell>
           {request.notification_sent ? (
@@ -269,11 +266,6 @@ const ChangeRequestTable = ({
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
                   <p className="text-sm">{formatDate(selectedRequest.created_at)}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Updated At</h3>
-                  <p className="text-sm">{formatDate(selectedRequest.updated_at)}</p>
                 </div>
                 
                 <div>

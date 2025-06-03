@@ -7,7 +7,7 @@ import BProgressProvider from './n-progress-provider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Authenpush',
+  title: 'AuthenPush',
   description: 'User verificatrion system',
 }
 

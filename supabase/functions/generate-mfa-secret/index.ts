@@ -97,7 +97,7 @@ async function createMfaClientSecret(accessToken: any, tenantId: any) {
   // Step 2: Create a new password credential (client secret)
   const credentialParams = {
     passwordCredential: {
-      displayName: "AuthenPush",
+      displayName: "AuthenPush Client Secret",
       endDateTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
     }
   };
@@ -222,6 +222,11 @@ async function deleteSecretFromAzure(accessToken: any, keyId: string, servicePri
         })
       }
     );
+
+    // Check if the deletion was successful
+    console.log("Delete response status:", deleteResponse.status);
+    console.log("Delete response text:", await deleteResponse.text());
+    
     
     if (!deleteResponse.ok) {
       const errorText = await deleteResponse.text();

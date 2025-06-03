@@ -132,7 +132,8 @@ serve(async (req) => {
       const mfaOutcome = parseMfaResponse(result);
 
       // // Step 5: Store MFA request details in Supabase
-      await storeMfaRequest(email, userDetails, contextId, mfaOutcome);
+      const completed_at = new Date().toISOString();
+      await storeMfaRequest(email, userDetails, contextId, mfaOutcome, completed_at);
 
       // Return success response with MFA outcome
       return new Response(
@@ -283,6 +284,7 @@ function parseMfaResponse(xmlString: string) {
     approved: false,
     denied: false,
     timeout: false,
+    mfa_not_configured: false,
     message: "",
   };
 
@@ -308,6 +310,9 @@ function parseMfaResponse(xmlString: string) {
     // Check for denial patterns
     result.denied = xmlString.includes("<Value>PhoneAppDenied</Value>") || 
                    xmlString.includes("<Value>Denied</Value>");
+
+    // Check for mfa not configured patterns
+    result.mfa_not_configured = xmlString.includes("<Value>NoDefaultAuthenticationMethodIsConfigured</Value>")
     
     // Check for timeout patterns  
     result.timeout = xmlString.includes("<Value>PhoneAppNoResponse</Value>") ||
@@ -348,7 +353,8 @@ async function storeMfaRequest(
   email: string,
   userDetails: any,
   contextId: string,
-  mfaOutcome: any
+  mfaOutcome: any,
+  completed_at: string
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -366,6 +372,7 @@ async function storeMfaRequest(
     if (mfaOutcome.approved) status = "approved";
     if (mfaOutcome.denied) status = "denied";
     if (mfaOutcome.timeout) status = "timeout";
+    if (mfaOutcome.mfa_not_configured) status = "mfa_not_configured";
 
     const response = await fetch(`${supabaseUrl}/rest/v1/change_requests`, {
       method: "POST",
@@ -380,7 +387,7 @@ async function storeMfaRequest(
         status: status,
         notification_sent: true,
         context_id: contextId,
-        completed_at: new Date().toISOString(),
+        completed_at: completed_at,
         admin_object_id: userDetails.userObjectId || null,
         admin_name: userDetails.name || null,
         admin_email: userDetails.email || null,

@@ -53,7 +53,6 @@ export type Database = {
           id: string
           notification_sent: boolean | null
           status: string
-          updated_at: string
           user_email: string
         }
         Insert: {
@@ -66,7 +65,6 @@ export type Database = {
           id?: string
           notification_sent?: boolean | null
           status?: string
-          updated_at?: string
           user_email: string
         }
         Update: {
@@ -79,7 +77,6 @@ export type Database = {
           id?: string
           notification_sent?: boolean | null
           status?: string
-          updated_at?: string
           user_email?: string
         }
         Relationships: []

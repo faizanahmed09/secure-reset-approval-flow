@@ -25,7 +25,7 @@ const Header = () => {
         <div className="flex items-center space-x-2">
           <Link href="/" className="flex items-center space-x-2">
             <img src="/logo.png" alt="Authenpush Logo" className="h-9 w-9"/>
-            <span className="font-medium text-lg">Authenpush</span>
+            <span className="font-medium text-lg">AuthenPush</span>
           </Link>
         </div>
         <div className="flex-1 flex justify-center">

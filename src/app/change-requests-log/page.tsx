@@ -19,7 +19,6 @@ export type ChangeRequest = {
   notification_sent: boolean;
   completed_at: string | null;
   created_at: string;
-  updated_at: string;
   context_id: string | null;
   admin_object_id: string | null;
   admin_name: string | null;

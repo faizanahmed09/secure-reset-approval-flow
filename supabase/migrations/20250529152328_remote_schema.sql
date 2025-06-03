@@ -84,7 +84,6 @@ CREATE TABLE IF NOT EXISTS "public"."change_requests" (
     "notification_sent" boolean DEFAULT false,
     "completed_at" timestamp with time zone,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "context_id" "text",
     "admin_object_id" "text",
     "admin_name" "text",

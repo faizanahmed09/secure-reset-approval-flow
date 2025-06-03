@@ -50,7 +50,7 @@
         
         {/* Center icon */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center animate-pulse">
+          <div className="w-10 h-10 bg-black-600 rounded-full flex items-center justify-center animate-pulse">
             {/* <Shield className="w-5 h-5 text-white" /> */}
             <img src="/logo.png" alt="Authenpush Logo" className="w-10 h-10" /> 
           </div>

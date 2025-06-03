@@ -10,7 +10,7 @@ import { FileText, LogOut, Loader2, Users, ArrowRight, Shield } from 'lucide-rea
 import { clearAzureAuth } from '../authConfig';
 import { useToast } from '@/hooks/use-toast';
 import { checkMfaSecret } from '../services/mfaSecretService';
-import { MfaConfigLoader, BeautifulLoader } from '@/loader';
+import { MfaConfigLoader, BeautifulLoader } from '@/app/loader';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
