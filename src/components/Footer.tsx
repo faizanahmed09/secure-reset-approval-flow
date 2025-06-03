@@ -1,6 +1,4 @@
 
-import { Shield } from 'lucide-react';
-
 const Footer = () => {
   return (
     <footer className="w-full py-6 border-t mt-auto">
