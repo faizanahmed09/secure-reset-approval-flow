@@ -3,7 +3,6 @@
 import { ProgressProvider } from '@bprogress/next/app';
 
 const BProgressProvider = ({ children }: { children: React.ReactNode }) => {
-  console.log('inside the progress bar')
   return (
     <>
       <ProgressProvider 

@@ -10,13 +10,24 @@ import { FileText, LogOut, Loader2, Users, ArrowRight, Shield } from 'lucide-rea
 import { clearAzureAuth } from '../authConfig';
 import { useToast } from '@/hooks/use-toast';
 import { checkMfaSecret } from '../services/mfaSecretService';
+import { handleUserOnRedirect, getCurrentUser, isUserProcessed, clearUserSession } from '../services/userService';
 import { MfaConfigLoader, BeautifulLoader } from '@/app/loader';
+
+interface user{
+  email: string;
+  name: string;
+  tenantId: string;
+  objectId: string;
+  display_name: string;
+}
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
   const { toast } = useToast();
   const [checkingMfa, setCheckingMfa] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [processingUser, setProcessingUser] = useState(false);
+  const [currentUser, setCurrentUser] = useState<user | null>(null);
   
   // Check if MFA has already been checked in this session
   const getMfaCheckedStatus = () => {
@@ -32,6 +43,55 @@ const Index = () => {
     }
   };
 
+  // Updated useEffect for processing user from URL redirect
+  useEffect(() => {
+    const processUserFromUrl = async () => {
+      if (typeof window === 'undefined') return;
+      
+      // Check if we have an id_token in URL and haven't processed user yet
+      const hash = window.location.hash;
+      const hasIdToken = hash.includes('id_token=');
+      const userAlreadyProcessed = isUserProcessed();
+      
+      console.log('Processing check:', { hasIdToken, userAlreadyProcessed });
+      
+      if (hasIdToken && !userAlreadyProcessed) {
+        setProcessingUser(true);
+        try {
+          console.log("Processing user from URL redirect...");
+          const result = await handleUserOnRedirect();
+          
+          if (result) {
+            setCurrentUser(result.user);
+            toast({
+              title: result.action === 'signup' ? "Welcome!" : "Welcome Back!",
+              description: result.action === 'signup' 
+                ? "Your account has been created successfully." 
+                : "You've been logged in successfully.",
+            });
+          }
+        } catch (error) {
+          console.error("Error processing user:", error);
+          toast({
+            title: "User Processing Error",
+            description: "There was an issue setting up your account. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setProcessingUser(false);
+        }
+      } else if (userAlreadyProcessed) {
+        // User already processed, just get from storage
+        const user = getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+        }
+      }
+    };
+
+    processUserFromUrl();
+  }, []); // Empty dependency array - runs once on mount
+
   // Handle initial loading state
   useEffect(() => {
     // Wait for MSAL to finish initializing
@@ -44,6 +104,7 @@ const Index = () => {
     }
   }, [inProgress]);
 
+  // Original MFA check logic (unchanged but with added condition)
   useEffect(() => {
     const mfaAlreadyChecked = getMfaCheckedStatus();
     
@@ -51,7 +112,9 @@ const Index = () => {
       accounts.length > 0 && 
       inProgress === 'none' && 
       !checkingMfa && 
-      !mfaAlreadyChecked
+      !mfaAlreadyChecked &&
+      !processingUser && // Wait for user processing to complete
+      isUserProcessed() // Only check MFA after user is processed
     ) {
       const verifyMfaSecret = async () => {
         setCheckingMfa(true);
@@ -92,12 +155,16 @@ const Index = () => {
 
       verifyMfaSecret();
     }
-  }, [accounts, inProgress, checkingMfa, instance, toast]);
+  }, [accounts, inProgress, checkingMfa, instance, toast, processingUser]);
 
   const handleLogout = async () => {
     try {
       // Reset MFA check state on logout
       setMfaCheckedStatus(false);
+      
+      // Clear user session
+      clearUserSession();
+      setCurrentUser(null);
       
       // Log out from MSAL
       instance.logoutRedirect().catch(console.error);
@@ -121,7 +188,6 @@ const Index = () => {
 
   // Check the current status from sessionStorage for rendering decisions
   const isMfaCheckComplete = !checkingMfa && getMfaCheckedStatus();
-
 
   // Show initial loader while MSAL is initializing or content is not ready
   if (isInitializing || inProgress === 'startup' || inProgress === 'handleRedirect') {
@@ -151,6 +217,11 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Secure user verification system
               </p>
+              {currentUser && (
+                <p className="text-sm text-blue-600">
+                  Welcome, {currentUser.display_name || currentUser.email}
+                </p>
+              )}
             </div>
             
             <UnauthenticatedTemplate>
@@ -158,7 +229,15 @@ const Index = () => {
             </UnauthenticatedTemplate>
             
             <AuthenticatedTemplate>
-              {checkingMfa ? (
+              {processingUser ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <h3 className="text-lg font-medium">Setting Up Your Account</h3>
+                  <p className="text-muted-foreground text-center max-w-md">
+                    We're preparing your account. This will only take a moment...
+                  </p>
+                </div>
+              ) : checkingMfa ? (
                 <MfaConfigLoader />
               ) : (
                 <div className="flex flex-col gap-4">

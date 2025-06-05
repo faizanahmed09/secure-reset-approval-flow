@@ -23,6 +23,7 @@ const getStoredTenantId = (): string => {
 export const msalConfig: Configuration = {
   auth: {
     clientId: getStoredClientId(), // Get from localStorage without default
+    // authority: 'https://login.microsoftonline.com/common',
     authority: `https://login.microsoftonline.com/${getStoredTenantId()}`, // Get from localStorage without default
     redirectUri: isClient ? window.location.origin : "http://localhost:3000", // Uses the current URL as redirect URI
   },
