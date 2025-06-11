@@ -232,11 +232,6 @@ const ChangeRequestTable = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div className="space-y-2">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Request ID</h3>
-                  <p className="text-sm font-mono">{selectedRequest.id}</p>
-                </div>
-                
-                <div>
                   <h3 className="text-sm font-medium text-muted-foreground">User Email</h3>
                   <p className="text-sm">{selectedRequest.user_email}</p>
                 </div>
@@ -252,7 +247,7 @@ const ChangeRequestTable = ({
                 </div>
                 
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Context ID</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Correlation ID</h3>
                   <p className="text-sm font-mono">{selectedRequest.context_id || "—"}</p>
                 </div>
 
@@ -264,13 +259,13 @@ const ChangeRequestTable = ({
               
               <div className="space-y-2">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
-                  <p className="text-sm">{formatDate(selectedRequest.created_at)}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Sent At</h3>
+                  <p className="text-sm">{formatDate(selectedRequest.completed_at)}</p>
                 </div>
                 
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Completed At</h3>
-                  <p className="text-sm">{formatDate(selectedRequest.completed_at)}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
+                  <p className="text-sm">{formatDate(selectedRequest.created_at)}</p>
                 </div>
                 
                 <div>
@@ -281,11 +276,6 @@ const ChangeRequestTable = ({
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Admin Email</h3>
                   <p className="text-sm">{selectedRequest.admin_email || "—"}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Admin Object ID</h3>
-                  <p className="text-sm font-mono">{selectedRequest.admin_object_id || "—"}</p>
                 </div>
               </div>
             </div>
