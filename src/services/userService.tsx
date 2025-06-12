@@ -1,4 +1,5 @@
 import { jwtDecode } from "jwt-decode";
+import { IPublicClientApplication, AuthenticationResult } from "@azure/msal-browser";
 
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
 
@@ -20,7 +21,7 @@ interface MicrosoftTokenPayload {
 
 let isProcessing = false; // Add a processing flag to prevent multiple calls
 
-export async function handleUserOnRedirect() {
+export async function handleUserOnRedirect(authResponse?: AuthenticationResult | null, msalInstance?: IPublicClientApplication) {
   try {
     // Prevent multiple simultaneous calls
     if (isProcessing) {
@@ -28,24 +29,45 @@ export async function handleUserOnRedirect() {
       return null;
     }
 
-    // Check if we have an id_token in the URL fragment
     if (typeof window === 'undefined') return null;
     
-    const hash = window.location.hash;
-    const urlParams = new URLSearchParams(hash.substring(1));
-    const idToken = urlParams.get('id_token');
-    console.log("ID Token from URL:", idToken);
+    let finalAuthResponse = authResponse;
     
-    if (!idToken) {
-      console.log("No id_token found in URL");
+    // If no authResponse provided and no msalInstance, try to get from URL hash (legacy behavior)
+    if (!finalAuthResponse && !msalInstance) {
+      console.log("No auth response or MSAL instance provided, checking URL hash...");
+      const hash = window.location.hash;
+      if (!hash.includes('id_token=')) {
+        console.log("No id_token in URL hash");
+        return null;
+      }
+      // For legacy URL hash handling, we would need to parse the hash manually
+      // But this is not recommended - better to use MSAL instance
+      return null;
+    }
+    
+    // If we have an MSAL instance but no auth response, handle redirect promise
+    if (!finalAuthResponse && msalInstance) {
+      console.log("Handling redirect promise with MSAL instance...");
+      finalAuthResponse = await msalInstance.handleRedirectPromise();
+    }
+    
+    if (!finalAuthResponse) {
+      console.log("No response from MSAL redirect");
       return null;
     }
 
     // Set processing flag
     isProcessing = true;
 
-    // Clean up the URL immediately to prevent re-processing
-    window.history.replaceState(null, '', window.location.pathname);
+    // Get the ID token from the response
+    const idToken = finalAuthResponse.idToken;
+    console.log("ID Token from MSAL:", idToken);
+
+    if (!idToken) {
+      console.log("No id_token in MSAL response");
+      return null;
+    }
 
     // Decode the ID token to extract user information
     const decodedToken = jwtDecode<MicrosoftTokenPayload>(idToken);
@@ -57,18 +79,24 @@ export async function handleUserOnRedirect() {
       tenantId: decodedToken.tid || "",
       objectId: decodedToken.oid || decodedToken.sub || "",
       clientId: decodedToken.aud || "",
-      token: idToken, 
-      tokenExpiresAt: decodedToken.exp ? new Date(decodedToken.exp * 1000) : null
+      token: idToken,
+      tokenExpiresAt: decodedToken.exp ? new Date(decodedToken.exp * 1000) : null,
+      accessToken: finalAuthResponse.accessToken
     };
-    
+
     console.log("Processing user from token:", userInfo);
 
     if (!userInfo.email) {
       throw new Error("No email found in token");
     }
 
+    // Store the access token in session storage
+    if (finalAuthResponse.accessToken) {
+      window.sessionStorage.setItem('accessToken', finalAuthResponse.accessToken);
+    }
+
     // Call the edge function to handle user creation/verification
-    const response = await fetch(
+    const apiResponse = await fetch(
       `${SUPABASE_URL}/functions/v1/manage-user`,
       {
         method: "POST",
@@ -81,12 +109,12 @@ export async function handleUserOnRedirect() {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.json();
+    if (!apiResponse.ok) {
+      const error = await apiResponse.json();
       throw new Error(error.message || "Failed to process user");
     }
 
-    const result = await response.json();
+    const result = await apiResponse.json();
     
     // Store user info in sessionStorage for app use
     window.sessionStorage.setItem('currentUser', JSON.stringify(result.user));

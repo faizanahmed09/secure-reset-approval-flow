@@ -37,7 +37,7 @@ const ResetApproval = () => {
           <Button
             variant="outline"
             className="mb-4"
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/admin-portal")}
             >
             <ArrowLeft className="h-4 w-4" />
             Back to Home

@@ -1,3 +1,78 @@
+# Secure Reset Approval Flow
+
+A Next.js application with Microsoft Azure AD authentication integration.
+
+## Features
+
+- **Microsoft Azure AD Authentication**: Secure login using Azure AD with PKCE (Proof Key for Code Exchange)
+- **Client-side Token Exchange**: Handles authorization code flow entirely on the client-side for SPA compatibility
+- **Session Management**: Secure token storage and user session handling
+- **Supabase Integration**: User management and data storage
+- **Modern UI**: Clean, responsive interface built with Tailwind CSS and shadcn/ui
+
+## Authentication Flow
+
+1. User clicks "Sign in with Microsoft"
+2. MSAL redirects to Azure AD with PKCE challenge
+3. User authenticates with Microsoft
+4. Azure AD redirects back with authorization code
+5. Client-side token exchange using PKCE verifier
+6. User data processing and session creation
+7. Redirect to admin portal
+
+## Configuration
+
+### Azure AD Settings
+- **Client ID**: `aad5399a-e678-4857-80be-a1664910d86a`
+- **Redirect URI**: `http://localhost:3000/auth-callback`
+- **Application Type**: Single-Page Application (SPA)
+- **Scopes**: `User.Read`, `openid`, `profile`
+
+### Environment
+- **Supabase URL**: `https://lbyvutzdimidlzgbjstz.supabase.co`
+- **Development Port**: `3000`
+
+## Key Files
+
+- `src/userAuthConfig.ts` - MSAL configuration
+- `src/contexts/AuthContext.tsx` - Authentication context and user management
+- `src/app/auth-callback/page.tsx` - Handles OAuth callback and token exchange
+- `src/app/page.tsx` - Login page
+- `src/app/admin-portal/page.tsx` - Protected admin interface
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Security Features
+
+- **PKCE Flow**: Prevents authorization code interception attacks
+- **Session Storage**: Secure token storage in browser session
+- **Client-side Validation**: JWT token validation and user data extraction
+- **Automatic Cleanup**: Session cleanup on logout and errors
+
+## Dependencies
+
+- Next.js 14
+- React 18
+- @azure/msal-browser & @azure/msal-react
+- Tailwind CSS
+- shadcn/ui components
+- jwt-decode
+
+## License
+
+Private project - All rights reserved.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 

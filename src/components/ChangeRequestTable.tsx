@@ -27,7 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChangeRequest, FilterOptions } from "@/app/change-requests-log/page";
+import { ChangeRequest, FilterOptions } from "@/app/admin-portal/change-requests-log/page";
 
 interface ChangeRequestTableProps {
   changeRequests: ChangeRequest[];

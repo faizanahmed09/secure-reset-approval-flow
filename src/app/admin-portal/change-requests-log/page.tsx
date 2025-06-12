@@ -179,7 +179,7 @@ const ChangeRequestsLog = () => {
       <Header />
       <main className="flex-1 container py-8">
         <div className="mb-8">
-          <Link href="/">
+          <Link href="/admin-portal">
             <Button variant="outline" size="sm" className="mb-4">
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back to Home

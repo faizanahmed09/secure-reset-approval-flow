@@ -12,7 +12,7 @@ const Header = () => {
     switch (pathname) {
       case "/":
         return "";
-      case "/reset-approval":
+      case "/admin-portal/reset-approval":
         return "Verify User Request";
       default:
         return "Verify User Request";

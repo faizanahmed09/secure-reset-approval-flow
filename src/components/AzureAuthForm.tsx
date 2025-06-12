@@ -48,7 +48,7 @@ const AzureAuthForm = () => {
 
       // Redirect to reset approval page
       // redirect('/');
-      // navigate('/users');
+      // navigate('/admin-portal/users');
 
     } catch (error: any) {
       console.error('Error during Azure AD authentication:', error);
@@ -118,7 +118,7 @@ const AzureAuthForm = () => {
               Authenticating...
             </>
           ) : (
-            'Sign in with Microsoft'
+            'Connect with Microsoft'
           )}
         </Button>
 

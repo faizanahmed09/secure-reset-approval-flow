@@ -11,7 +11,7 @@ import {
   Card,
   CardContent
 } from "@/components/ui/card";
-import { FilterOptions } from "@/app/change-requests-log/page";
+import { FilterOptions } from "@/app/admin-portal/change-requests-log/page";
 import { Search } from "lucide-react";
 
 interface ChangeRequestFiltersProps {
