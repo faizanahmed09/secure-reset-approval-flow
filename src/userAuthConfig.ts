@@ -8,14 +8,12 @@ import { LogLevel } from "@azure/msal-browser";
 /**
  * MSAL Configuration for Azure AD authentication
  */
-const isClient = typeof window !== 'undefined';
-
 export const msalConfig = {
     auth: {
         clientId: "aad5399a-e678-4857-80be-a1664910d86a",
         authority: "https://login.microsoftonline.com/organizations",
-        redirectUri: isClient ? window.location.origin : "http://localhost:3000",
-        postLogoutRedirectUri: "http://localhost:3000",
+        redirectUri: (typeof window !== "undefined" ? `${window.location.origin}/auth-callback` : "http://localhost:3000/auth-callback"),
+        postLogoutRedirectUri: ( typeof window !== "undefined" ? `${window.location.origin}/` : "http://localhost:3000/"),
         navigateToLoginRequestUrl: false,
     },
     cache: {
