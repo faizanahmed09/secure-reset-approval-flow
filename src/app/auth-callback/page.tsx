@@ -108,7 +108,7 @@ export default function AuthCallback() {
             client_id: 'aad5399a-e678-4857-80be-a1664910d86a',
             scope: 'User.Read openid profile',
             code: hashParams.code,
-            redirect_uri: 'http://localhost:3000/auth-callback',
+            redirect_uri: `${window.location.origin}/auth-callback`,
             grant_type: 'authorization_code',
             code_verifier: codeVerifier,
           });
