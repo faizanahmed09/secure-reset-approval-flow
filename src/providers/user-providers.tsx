@@ -9,6 +9,7 @@ import { PublicClientApplication, EventType } from '@azure/msal-browser';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
+import Loader from "@/components/common/Loader";
 
 const queryClient = new QueryClient()
 // Initialize the MSAL application object
@@ -22,6 +23,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeMsal = async () => {
       try {
+        // Check if already initialized to avoid re-initialization
+        if (msalInstance.getConfiguration()) {
+          setIsInitialized(true);
+          return;
+        }
+
         await msalInstance.initialize()
         
         // Add event callback to handle login success
@@ -57,11 +64,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   if (!isInitialized) {
     return (
-      <div className='flex h-screen items-center justify-center'>
-        <div className="text-center text-gray-500">
-          <p>Initializing authentication...</p>
-          <p>Please wait...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader text="Initializing authentication..." subtext="Please wait..." />
       </div>
     )
   }

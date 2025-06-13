@@ -129,8 +129,6 @@ ALTER TABLE ONLY "public"."mfa_secrets"
     ADD CONSTRAINT "mfa_secrets_pkey" PRIMARY KEY ("id");
 
 
-CREATE INDEX IF NOT EXISTS idx_azure_users_email ON azure_users(email);
-CREATE INDEX IF NOT EXISTS idx_azure_users_tenant_id ON azure_users(tenant_id);
 
 
 CREATE INDEX "idx_mfa_secrets_sp_id" ON "public"."mfa_secrets" USING "btree" ("sp_id");

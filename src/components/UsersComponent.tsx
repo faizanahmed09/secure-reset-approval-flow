@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import Loader from "@/components/common/Loader";
 
 interface AzureUser {
   id: string;
@@ -73,6 +74,14 @@ const UsersComponent = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader text="Loading users..." subtext="Fetching users from Azure AD..." />
+      </div>
+    );
+  }
+
   return (
     <div className="container py-8">
       <Button 
@@ -93,11 +102,7 @@ const UsersComponent = () => {
           <CardDescription>Users from your Azure Active Directory</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-            </div>
-          ) : users.length > 0 ? (
+          {users.length > 0 ? (
             <div className="space-y-4">
               {users.map((user: AzureUser) => (
                 <div key={user.id} className="p-4 border rounded-md bg-muted/30 flex flex-col">

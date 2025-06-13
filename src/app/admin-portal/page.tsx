@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { checkMfaSecret } from '../../services/mfaSecretService';
 import { useAuth } from '@/contexts/AuthContext';
 import { MfaConfigLoader, BeautifulLoader } from '@/app/loader';
+import { OrganizationInfo } from '@/components/OrganizationInfo';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
@@ -37,11 +38,7 @@ const Index = () => {
   useEffect(() => {
     // Wait for MSAL to finish initializing
     if (inProgress === 'none') {
-      // Add a small delay to prevent flash
-      const timer = setTimeout(() => {
-        setIsInitializing(false);
-      }, 500);
-      return () => clearTimeout(timer);
+      setIsInitializing(false);
     }
   }, [inProgress]);
 
@@ -126,16 +123,8 @@ const Index = () => {
   // Show initial loader while MSAL is initializing or content is not ready
   if (isInitializing || inProgress === 'startup' || inProgress === 'handleRedirect' || isLoading) {
     return (
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-1 container py-12">
-          <div className="flex flex-col items-center">
-            <div className="max-w-md w-full">
-              <BeautifulLoader />
-            </div>
-          </div>
-        </main>
-        <Footer />
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
       </div>
     );
   }
@@ -152,9 +141,17 @@ const Index = () => {
                 Secure user verification system
               </p>
               {user && (
-                <p className="text-sm text-blue-600">
-                  Welcome, {user.display_name || user.email}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-blue-600">
+                    Welcome, {user.display_name || user.name || user.email}
+                  </p>
+                  {user.organizations && (
+                    <OrganizationInfo 
+                      organization={user.organizations} 
+                      className="justify-center"
+                    />
+                  )}
+                </div>
               )}
             </div>
             

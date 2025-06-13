@@ -7,12 +7,29 @@ import { loginRequest } from '@/userAuthConfig'
 
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co"
 
-interface User {
-  email: string;
+interface Organization {
+  id: string;
   name: string;
+  domain: string;
+  display_name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name?: string;
   tenantId: string;
   objectId: string;
-  display_name: string;
+  display_name?: string;
+  organization_id?: string;
+  organizations?: Organization;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string;
 }
 
 interface AuthContextType {

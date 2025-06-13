@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import Loader from "@/components/common/Loader";
 
 // Helper function to parse URL hash parameters
 function parseUrlHash(hash: string) {
@@ -173,11 +174,7 @@ export default function AuthCallback() {
   if (isProcessing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold mb-2">Processing authentication...</h2>
-          <p className="text-gray-600">Please wait while we complete your sign-in.</p>
-        </div>
+        <Loader text="Processing authentication..." subtext="Please wait while we complete your sign-in." />
       </div>
     );
   }
