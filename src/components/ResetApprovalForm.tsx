@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,12 +22,14 @@ import {
   UserX,
   RefreshCw,
   LogOut,
+  Search,
 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest, clearAzureAuth, graphConfig } from "../authConfig";
 import { Progress } from "@/components/ui/progress";
 import axios from "axios";
 import Loader from "@/components/common/Loader";
+import { debounce } from 'lodash/debounce';
 
 interface AzureUser {
   id: string;
@@ -52,18 +54,17 @@ type ResetRequestState = {
   status: RequestStatus;
   message?: string;
   contextId?: string;
-  progress?: number; // For the progress bar during polling
+  progress?: number;
 };
 
 // Interface for JWT token payload
 interface AzureJwtPayload {
   name?: string;
   preferred_username?: string;
-  tid?: string; // Tenant ID
-  oid?: string; // Object ID
-  [key: string]: any; // Allow for other properties
+  tid?: string;
+  oid?: string;
+  [key: string]: any;
 }
-
 
 const ResetApprovalForm = () => {
   const { instance, accounts } = useMsal();
@@ -73,82 +74,150 @@ const ResetApprovalForm = () => {
     status: "idle",
   });
 
-  // New states for users and filtered users dropdown
-  const [allUsers, setAllUsers] = useState<AzureUser[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<AzureUser[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
+  // Enhanced states for server-side search
+  const [searchResults, setSearchResults] = useState<AzureUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchError, setSearchError] = useState<string>("");
+  
   const { toast } = useToast();
-  const fetchedUsersRef = useRef(false);
-
-  // Add AbortController ref to manage request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (accounts.length > 0 && !fetchedUsersRef.current) {
-      fetchedUsersRef.current = true;
-      fetchUsers();
-    } else if (accounts.length === 0) {
+    if (accounts.length === 0) {
       instance.loginRedirect(loginRequest);
     }
   }, [accounts]);
 
-  // Fetch Azure AD users
-  const fetchUsers = async () => {
+  // Optimized field selection for search
+  const selectFields = ['displayName', 'userPrincipalName'].join(',');
+
+  // Server-side search function
+  const searchUsers = async (query: string): Promise<AzureUser[]> => {
+    if (!query.trim() || query.length < 2) {
+      return [];
+    }
+
     try {
-      setUsersLoading(true);
+      // Cancel previous search request
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+      }
+      
+      // Create new AbortController for this search
+      searchAbortControllerRef.current = new AbortController();
+
       const tokenResponse = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
       });
 
-      const response = await axios.get(graphConfig.graphUsersEndpoint, {
+      // Build search filter - search in displayName, userPrincipalName, and mail
+      const searchFilter = `startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}')`;
+      
+      // Note: $orderby is not supported with complex $filter queries in Microsoft Graph
+      const endpoint = `${graphConfig.graphUsersEndpoint}?$select=${selectFields}&$filter=${encodeURIComponent(searchFilter)}&$top=20`;
+
+      const response = await axios.get(endpoint, {
         headers: {
           Authorization: `Bearer ${tokenResponse.accessToken}`,
+          'ConsistencyLevel': 'eventual',
         },
+        signal: searchAbortControllerRef.current.signal,
       });
 
-      setAllUsers(response.data.value);
-      setFilteredUsers(response.data.value);
+      return response.data.value || [];
     } catch (error: any) {
-      console.error("Error fetching users:", error);
-      toast({
-        title: "Error Fetching Users",
-        description: "Failed to fetch users from Azure AD",
-        variant: "destructive",
-      });
-
-      if (error.name === "InteractionRequiredAuthError") {
-        instance.acquireTokenRedirect(loginRequest);
+      // Don't handle error if request was cancelled
+      if (error.name === 'AbortError' || axios.isCancel(error)) {
+        return [];
       }
-    } finally {
-      setUsersLoading(false);
+
+      console.error("Error searching users:", error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 403) {
+        throw new Error("Insufficient permissions to search users");
+      } else if (error.response?.status === 401) {
+        // Try to refresh token
+        instance.acquireTokenRedirect(loginRequest);
+        throw new Error("Authentication required");
+      } else {
+        throw new Error("Failed to search users");
+      }
     }
   };
 
-  // Update email input and filter dropdown list
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce(async (query: string) => {
+      if (!query.trim() || query.length < 2) {
+        setSearchResults([]);
+        setShowDropdown(false);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setSearchError("");
+
+      try {
+        const results = await searchUsers(query);
+        setSearchResults(results);
+        setShowDropdown(true);
+        
+        // Show helpful message if no results found
+        if (results.length === 0) {
+          setSearchError(`No users found matching "${query}"`);
+        }
+      } catch (error: any) {
+        console.error("Search error:", error);
+        setSearchError(error.message || "Search failed");
+        setSearchResults([]);
+        setShowDropdown(false);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500),
+    [instance, accounts]
+  );
+
+  // Handle email input change with server-side search
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setEmail(val);
+    setSearchError("");
 
-    if (!val) {
-      setFilteredUsers(allUsers);
+    if (!val.trim()) {
+      setSearchResults([]);
       setShowDropdown(false);
+      setIsSearching(false);
+      // Cancel any pending search
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+      }
       return;
     }
 
-    const filtered = allUsers.filter((user) =>
-      user.userPrincipalName.toLowerCase().includes(val.toLowerCase())
-    );
-    setFilteredUsers(filtered);
-    setShowDropdown(true);
+    // Trigger debounced search
+    debouncedSearch(val);
   };
 
   // When user clicks a dropdown item
   const handleUserClick = (user: AzureUser) => {
     setEmail(user.userPrincipalName);
     setShowDropdown(false);
+    setSearchResults([]);
+    setSearchError("");
+  };
+
+  // Handle input focus
+  const handleInputFocus = () => {
+    if (email.trim() && searchResults.length > 0) {
+      setShowDropdown(true);
+    }
   };
 
   // Close dropdown if clicked outside
@@ -189,6 +258,12 @@ const ResetApprovalForm = () => {
       });
       return;
     }
+
+    // Cancel any ongoing search
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+    setShowDropdown(false);
 
     // Create new AbortController for this request
     abortControllerRef.current = new AbortController();
@@ -322,143 +397,146 @@ const ResetApprovalForm = () => {
     }
   };
 
-// Process initial MFA response and return whether polling is needed
+  // Process initial MFA response and return whether polling is needed
 const processInitialResponse = (data: any, email : string) => {
   // Check if request was cancelled
-  if (abortControllerRef.current?.signal.aborted) {
-    return false;
-  }
+    if (abortControllerRef.current?.signal.aborted) {
+      return false;
+    }
 
   // Check for immediate errors in the response
-  if (data.result && !data.result.received) {
-    updateRequestState({
-      status: "error",
-      message: "Failed to send MFA notification: " + (data.result.message || "Unknown error")
-    });
-    return false;
-  }
-  
+    if (data.result && !data.result.received) {
+      updateRequestState({
+        status: "error",
+        message: "Failed to send MFA notification: " + (data.result.message || "Unknown error")
+      });
+      return false;
+    }
+    
   // Check for user not found error specifically
-  if (data.result && data.result.message && data.result.message.includes("user not found")) {
-    updateRequestState({
-      status: "user_not_found",
-      message: `User "${email}" not found in your organization.`,
-      contextId: data.contextId
-    });
-    return false;
-  }
+    if (data.result && data.result.message && data.result.message.includes("user not found")) {
+      updateRequestState({
+        status: "user_not_found",
+        message: `User "${email}" not found in your organization.`,
+        contextId: data.contextId
+      });
+      return false;
+    }
 
   // NEW: Check for "No default authentication method" error
-  if (data.result && data.result.message && 
-      (data.result.message.includes("No default authentication method") || 
-       data.result.message.includes("authentication method is set"))) {
-    updateRequestState({
-      status: "mfa_not_configured",
-      message: `User "${email}" exists but does not have MFA configured. Please set up multi-factor authentication for this user first.`,
-      contextId: data.contextId
-    });
-    return false;
-  }
+    if (data.result && data.result.message && 
+        (data.result.message.includes("No default authentication method") || 
+         data.result.message.includes("authentication method is set"))) {
+      updateRequestState({
+        status: "mfa_not_configured",
+        message: `User "${email}" exists but does not have MFA configured. Please set up multi-factor authentication for this user first.`,
+        contextId: data.contextId
+      });
+      return false;
+    }
 
-  // NEW: Check for other MFA configuration errors
-  if (data.result && data.result.received && 
-      !data.result.approved && !data.result.denied && !data.result.timeout &&
-      data.result.message && data.result.message.trim() !== "") {
-    // This catches cases where the request was received but failed due to MFA setup issues
-    updateRequestState({
-      status: "mfa_not_configured", 
-      message: `MFA configuration issue: ${data.result.message}`,
-      contextId: data.contextId
-    });
-    return false;
-  }
+    if (data.result && data.result.received && 
+        !data.result.approved && !data.result.denied && !data.result.timeout &&
+        data.result.message && data.result.message.trim() !== "") {
+      updateRequestState({
+        status: "mfa_not_configured", 
+        message: `MFA configuration issue: ${data.result.message}`,
+        contextId: data.contextId
+      });
+      return false;
+    }
 
-  // Check if user has SMS MFA but we need push notification
-  if (data.result && data.result.received && data.result.message && 
-      (data.result.message.includes("SMS MFA configured") || 
-      data.result.message.includes("push notifications are not available"))) {
-    updateRequestState({
-      status: "mfa_not_configured",
-      message: `User "${email}" has SMS-based MFA configured. Push notifications are only available for users with Microsoft Authenticator app or similar push-capable MFA methods.`,
-      contextId: data.contextId
-    });
-  return false;
-  }
-  
-  // Check for tenant permission errors even when success is true
-  if (data.result && data.result.message && 
-      (data.result.message.includes("does not have access permissions") || 
-       data.result.message.includes("tenant"))) {
-    updateRequestState({
-      status: "error",
-      message: data.result.message,
-      contextId: data.contextId
-    });
-    return false;
-  }
-  
-  // Check for immediate approval/denial/timeout in the synchronous response
-  if (data.result && data.result.approved) {
-    updateRequestState({
-      status: "approved",
-      message: "User has approved the request. You can proceed with account changes.",
-      contextId: data.contextId
-    });
-    return false;
-  }
-  
-  if (data.result && data.result.denied) {
-    updateRequestState({
-      status: "denied",
-      message: "User has denied the request. No changes will be made.",
-      contextId: data.contextId
-    });
-    return false;
-  }
-  
-  if (data.result && data.result.timeout) {
-    updateRequestState({
-      status: "timeout",
-      message: "Request timed out. The user did not respond within the time limit.",
-      contextId: data.contextId
-    });
-    return false;
-  }
+    if (data.result && data.result.received && data.result.message && 
+        (data.result.message.includes("SMS MFA configured") || 
+        data.result.message.includes("push notifications are not available"))) {
+      updateRequestState({
+        status: "mfa_not_configured",
+        message: `User "${email}" has SMS-based MFA configured. Push notifications are only available for users with Microsoft Authenticator app or similar push-capable MFA methods.`,
+        contextId: data.contextId
+      });
+      return false;
+    }
+    
+    if (data.result && data.result.message && 
+        (data.result.message.includes("does not have access permissions") || 
+         data.result.message.includes("tenant"))) {
+      updateRequestState({
+        status: "error",
+        message: data.result.message,
+        contextId: data.contextId
+      });
+      return false;
+    }
+    
+    if (data.result && data.result.approved) {
+      updateRequestState({
+        status: "approved",
+        message: "User has approved the request. You can proceed with account changes.",
+        contextId: data.contextId
+      });
+      return false;
+    }
+    
+    if (data.result && data.result.denied) {
+      updateRequestState({
+        status: "denied",
+        message: "User has denied the request. No changes will be made.",
+        contextId: data.contextId
+      });
+      return false;
+    }
+    
+    if (data.result && data.result.timeout) {
+      updateRequestState({
+        status: "timeout",
+        message: "Request timed out. The user did not respond within the time limit.",
+        contextId: data.contextId
+      });
+      return false;
+    }
 
-  // If we get here, we need to start polling for the result
-  updateRequestState({
-    status: "loading",
-    message: "Approval request sent. Waiting for user response...",
-    contextId: data.contextId
-  });
-  
-  return true;
-};
+    updateRequestState({
+      status: "loading",
+      message: "Approval request sent. Waiting for user response...",
+      contextId: data.contextId
+    });
+    
+    return true;
+  };
 
   const handleResetForm = () => {
-    // Cancel any ongoing request
+    // Cancel any ongoing requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+    }
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+      searchAbortControllerRef.current = null;
     }
 
     // Reset state
     setResetReq({ email: "", status: "idle" });
     setEmail("");
+    setSearchResults([]);
+    setShowDropdown(false);
+    setSearchError("");
+    setIsSearching(false);
   };
 
   const handleLogout = async () => {
     try {
-      // Cancel any ongoing request before logout
+      // Cancel any ongoing requests before logout
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+        searchAbortControllerRef.current = null;
+      }
 
-      // Log out from MSAL
       instance.logoutRedirect().catch(console.error);
-
-      // Clear Azure auth-related items from localStorage/sessionStorage
       clearAzureAuth();
 
       toast({
@@ -466,7 +544,6 @@ const processInitialResponse = (data: any, email : string) => {
         description: "You've been logged out from Azure AD",
       });
 
-      // Navigate back to home page
       window.location.href = "/";
     } catch (error: any) {
       console.error("Error during logout:", error);
@@ -478,11 +555,14 @@ const processInitialResponse = (data: any, email : string) => {
     }
   };
 
-  // Cleanup AbortController on component unmount
+  // Cleanup AbortControllers on component unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
       }
     };
   }, []);
@@ -645,10 +725,10 @@ const processInitialResponse = (data: any, email : string) => {
         <div className="bg-muted/50 p-4 rounded-md border">
           <h3 className="text-sm font-medium mb-2">Process Information:</h3>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Enter the user's email address</li>
+            <li>• Search for users across your organization</li>
             <li>• System sends a secure push notification to the user</li>
             <li>• User approves or rejects the request</li>
-            <li>• On approval, You can change the user's details</li>
+            <li>• On approval, you can change the user's details</li>
           </ul>
         </div>
       </div>
@@ -660,7 +740,7 @@ const processInitialResponse = (data: any, email : string) => {
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
         <CardTitle className="text-center text-2xl">Change Request</CardTitle>
         <CardDescription className="text-center text-gray-600">
-          Enter the user's email to trigger MFA approval
+          Search and select a user to trigger MFA approval
         </CardDescription>
       </CardHeader>
 
@@ -671,37 +751,46 @@ const processInitialResponse = (data: any, email : string) => {
               <Label htmlFor="email" className="text-gray-700">
                 User Email
               </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={handleEmailChange}
-                placeholder="user@example.com"
-                className="mt-1"
-                required
-                autoComplete="off"
-                onFocus={() => {
-                  if (email) setShowDropdown(true);
-                }}
-              />
-              {/* Dropdown for filtered users */}
-              {showDropdown && filteredUsers.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  onFocus={handleInputFocus}
+                  placeholder="Start typing to search users..."
+                  className="mt-1 pl-10"
+                  required
+                  autoComplete="off"
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {showDropdown && (
                 <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded-md border bg-white shadow-lg">
-                  {filteredUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="cursor-pointer px-3 py-2 hover:bg-blue-100"
-                      onClick={() => handleUserClick(user)}
-                    >
-                      <div className="font-medium">{user.displayName}</div>
-                      <div className="text-sm text-gray-500">{user.userPrincipalName}</div>
+                  {searchResults.length > 0 ? (
+                    searchResults.map((user) => (
+                      <div
+                        key={user.id}
+                        className="cursor-pointer px-3 py-2 hover:bg-blue-100 transition-colors"
+                        onClick={() => handleUserClick(user)}
+                      >
+                        <div className="font-medium">{user.displayName}</div>
+                        <div className="text-sm text-gray-500">{user.userPrincipalName}</div>
+                        {user.mail && user.mail !== user.userPrincipalName && (
+                          <div className="text-xs text-blue-600">{user.mail}</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      {searchError || (email.length < 2 ? "Type at least 2 characters to search" : "No users found")}
                     </div>
-                  ))}
-                </div>
-              )}
-              {showDropdown && filteredUsers.length === 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg px-3 py-2 text-sm text-gray-500">
-                  No users found
+                  )}
                 </div>
               )}
             </div>
@@ -714,6 +803,8 @@ const processInitialResponse = (data: any, email : string) => {
         ) : (
           renderStatus()
         )}
+
+        {getHelpText()}
       </CardContent>
 
       <CardFooter className="flex flex-col">
