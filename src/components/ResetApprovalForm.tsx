@@ -26,10 +26,9 @@ import {
 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest, clearAzureAuth, graphConfig } from "../authConfig";
-import { Progress } from "@/components/ui/progress";
 import axios from "axios";
 import Loader from "@/components/common/Loader";
-import { debounce } from 'lodash/debounce';
+import debounce from 'lodash/debounce';
 
 interface AzureUser {
   id: string;

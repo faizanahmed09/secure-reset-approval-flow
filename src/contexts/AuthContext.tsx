@@ -20,12 +20,14 @@ interface Organization {
 interface User {
   id: string;
   email: string;
-  name?: string;
-  tenantId: string;
+  name: string;
+  tenant_id: string;
+  client_id: string;
   objectId: string;
   display_name?: string;
   organization_id?: string;
   organizations?: Organization;
+  role?: 'admin' | 'verifier' | 'basic';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -81,6 +83,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }
 
+      // Fetch organization details from Microsoft Graph API
+      let organizationDetails = null;
+      if (userInfo.tenantId && accessToken) {
+        try {
+          const graphResponse = await fetch(
+            `https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='${userInfo.tenantId}')`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          console.log("Graph API response:", graphResponse);
+
+          if (graphResponse.ok) {
+            organizationDetails = await graphResponse.json();
+          } else {
+            console.warn('Failed to fetch organization details from Graph API');
+          }
+        } catch (error) {
+          console.warn('Error fetching organization details:', error);
+        }
+      }
+
       // Call the edge function to handle user creation/verification
       const apiResponse = await fetch(
         `${SUPABASE_URL}/functions/v1/manage-user`,
@@ -90,7 +117,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userInfo
+            userInfo,
+            organizationDetails
           }),
         }
       );

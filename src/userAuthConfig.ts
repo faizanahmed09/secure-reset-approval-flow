@@ -55,7 +55,11 @@ export const msalConfig = {
  * Login request configuration
  */
 export const loginRequest = {
-    scopes: ["User.Read"],
+    scopes: [
+        "User.Read",
+        "User.Read.All",
+        "https://graph.microsoft.com/CrossTenantInformation.ReadBasic.All"
+    ],
     prompt: "select_account",
     responseMode: "fragment",
     responseType: "id_token token"

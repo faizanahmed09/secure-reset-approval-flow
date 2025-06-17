@@ -146,10 +146,20 @@ const Index = () => {
                     Welcome, {user.display_name || user.name || user.email}
                   </p>
                   {user.organizations && (
-                    <OrganizationInfo 
-                      organization={user.organizations} 
-                      className="justify-center"
-                    />
+                    <div className="space-y-2">
+                      <OrganizationInfo 
+                        organization={user.organizations} 
+                        className="justify-center"
+                      />
+                      {user.role === 'admin' && (
+                        <Link href="/application-users" className="block">
+                          <Button variant="outline" size="sm" className="w-full">
+                            <Users className="mr-2 h-4 w-4" />
+                            Manage Organization Users
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -173,7 +183,7 @@ const Index = () => {
                   <Link href="/admin-portal/users" className="w-full">
                     <Button variant="outline" className="w-full">
                     <Users className="mr-2 h-4 w-4" />
-                      Manage Users
+                      Manage Azure Users
                     </Button>
                   </Link>
                   <Link href="/admin-portal/change-requests-log" className="w-full">
@@ -197,16 +207,6 @@ const Index = () => {
               )}
             </AuthenticatedTemplate>
             
-            <div className="bg-muted/50 p-4 rounded-md border">
-              <h3 className="text-sm font-medium mb-2">About this system:</h3>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Authenticate using Azure AD credentials</li>
-                <li>• View users in your Azure Active Directory</li>
-                <li>• Initiate secure verify user process</li>
-                <li>• Requires user approval via push notification</li>
-                <li>• Track verify user request history in logs</li>
-              </ul>
-            </div>
           </div>
         </div>
       </main>
