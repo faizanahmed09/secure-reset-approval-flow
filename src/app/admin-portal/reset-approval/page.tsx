@@ -2,13 +2,30 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ResetApprovalForm from '@/components/ResetApprovalForm';
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { BeautifulLoader } from '@/app/loader';
 
 const ResetApproval = () => {
   const router = useRouter();
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  // Show loader while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
+      </div>
+    );
+  }
+
+  // Redirect to admin portal if not authenticated
+  if (!isAuthenticated) {
+    router.push('/admin-portal');
+    return null;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -16,20 +33,7 @@ const ResetApproval = () => {
       <main className="flex-1 container py-12">
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
-            <AuthenticatedTemplate>
-              <ResetApprovalForm />
-            </AuthenticatedTemplate>
-
-            <UnauthenticatedTemplate>
-              <div className="bg-muted/50 p-6 rounded-md border text-center">
-                <h3 className="font-medium mb-2">Authentication Required</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  You need to authenticate with Azure AD before accessing this
-                  page.
-                </p>
-                <Button onClick={() => router.push("/")}>Go to Login</Button>
-              </div>
-            </UnauthenticatedTemplate>
+            <ResetApprovalForm />
           </div>
         </div>
         {/* button to show to top left corner of page */}

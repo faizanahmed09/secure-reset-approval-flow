@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import AzureAuthForm from '@/components/AzureAuthForm';
-import { AuthenticatedTemplate, UnauthenticatedTemplate, useMsal } from '@azure/msal-react';
+import { useMsal } from '@azure/msal-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link'
 import { FileText, LogOut, Loader2, Users, ArrowRight, Shield } from 'lucide-react';
@@ -12,11 +11,13 @@ import { checkMfaSecret } from '../../services/mfaSecretService';
 import { useAuth } from '@/contexts/AuthContext';
 import { MfaConfigLoader, BeautifulLoader } from '@/app/loader';
 import { OrganizationInfo } from '@/components/OrganizationInfo';
+import { useRouter } from 'next/navigation';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
   const { user, isLoading, isAuthenticated, handleLogout } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [checkingMfa, setCheckingMfa] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   
@@ -57,6 +58,11 @@ const Index = () => {
       const verifyMfaSecret = async () => {
         setCheckingMfa(true);
         try {
+          // Ensure active account is set for MSAL
+          if (!instance.getActiveAccount() && accounts.length > 0) {
+            instance.setActiveAccount(accounts[0]);
+          }
+          
           // Get tokens silently
           const tokenResponse = await instance.acquireTokenSilent({
             scopes: ['https://graph.microsoft.com/Application.ReadWrite.All'],
@@ -129,6 +135,77 @@ const Index = () => {
     );
   }
 
+  // Redirect to index page if not authenticated
+  if (!isAuthenticated) {
+    router.push('/');
+    return null;
+  }
+
+  // Role-based button rendering
+  const renderRoleBasedButtons = () => {
+    if (checkingMfa) {
+      return <MfaConfigLoader />;
+    }
+
+    const userRole = user?.role;
+    
+    return (
+      <div className="flex flex-col gap-4">
+        {/* Admin can see all options, Verifier can see Start Verify User Process */}
+        {(userRole === 'admin' || userRole === 'verifier') && (
+          <Link href="/admin-portal/reset-approval" className="w-full">
+            <Button className="w-full">
+              <ArrowRight className="mr-2 h-4 w-4" />
+              Start Verify User Process
+            </Button>
+          </Link>
+        )}
+        
+        {/* All authenticated users can see Manage Azure Users */}
+        <Link href="/admin-portal/users" className="w-full">
+          <Button variant="outline" className="w-full">
+            <Users className="mr-2 h-4 w-4" />
+            Manage Azure Users
+          </Button>
+        </Link>
+        
+        {/* All authenticated users can see View Verify User Request Logs */}
+        <Link href="/admin-portal/change-requests-log" className="w-full">
+          <Button variant="outline" className="w-full flex items-center">
+            <FileText className="mr-2 h-4 w-4" />
+            View Verify User Request Logs
+          </Button>
+        </Link>
+        
+        {/* All authenticated users can see Manage Organization Users */}
+        {user?.organizations && (
+          <Link href="/application-users" className="w-full">
+            <Button variant="outline" className="w-full">
+              <Users className="mr-2 h-4 w-4" />
+              Manage Organization Users
+              {(userRole === 'verifier' || userRole === 'basic') && (
+                <span className="ml-2 text-xs text-muted-foreground">(View Only)</span>
+              )}
+            </Button>
+          </Link>
+        )}
+        
+        {/* Logout button for all authenticated users */}
+        <div className="flex justify-center items-center gap-2">
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={handleLogoutClick} 
+            className="w-full"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -145,67 +222,23 @@ const Index = () => {
                   <p className="text-sm text-blue-600">
                     Welcome, {user.display_name || user.name || user.email}
                   </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full capitalize">
+                      {user.role || 'user'}
+                    </span>
+                  </div>
                   {user.organizations && (
-                    <div className="space-y-2">
-                      <OrganizationInfo 
-                        organization={user.organizations} 
-                        className="justify-center"
-                      />
-                      {user.role === 'admin' && (
-                        <Link href="/application-users" className="block">
-                          <Button variant="outline" size="sm" className="w-full">
-                            <Users className="mr-2 h-4 w-4" />
-                            Manage Organization Users
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
+                    <OrganizationInfo 
+                      organization={user.organizations} 
+                      className="justify-center"
+                    />
                   )}
                 </div>
               )}
             </div>
             
-            <UnauthenticatedTemplate>
-              <AzureAuthForm />
-            </UnauthenticatedTemplate>
-            
-            <AuthenticatedTemplate>
-              {checkingMfa ? (
-                <MfaConfigLoader />
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <Link href="/admin-portal/reset-approval" className="w-full">
-                    <Button className="w-full">
-                      <ArrowRight className="mr-2 h-4 w-4" />
-                      Start Verify User Process
-                    </Button>
-                  </Link>
-                  <Link href="/admin-portal/users" className="w-full">
-                    <Button variant="outline" className="w-full">
-                    <Users className="mr-2 h-4 w-4" />
-                      Manage Azure Users
-                    </Button>
-                  </Link>
-                  <Link href="/admin-portal/change-requests-log" className="w-full">
-                    <Button variant="outline" className="w-full flex items-center">
-                      <FileText className="mr-2 h-4 w-4" />
-                      View Verify User Request Logs
-                    </Button>
-                  </Link>
-                  <div className="flex justify-center items-center gap-2">
-                    <Button 
-                      variant="destructive" 
-                      size="sm" 
-                      onClick={handleLogoutClick} 
-                      className="w-full"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </AuthenticatedTemplate>
+            {/* Show role-based options for authenticated users */}
+            {renderRoleBasedButtons()}
             
           </div>
         </div>

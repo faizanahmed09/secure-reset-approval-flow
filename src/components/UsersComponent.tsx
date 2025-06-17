@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
-import { loginRequest, graphConfig } from '../authConfig';
+import { loginRequest, graphConfig } from '../userAuthConfig';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import Loader from "@/components/common/Loader";
 import { debounce } from 'lodash';
+import { getAccessToken } from '@/services/userService';
 
 interface AzureUser {
   id: string;
@@ -106,6 +107,8 @@ const UsersComponent = () => {
     'mail'
   ].join(',');
 
+
+
   // Debounced search function
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -129,8 +132,7 @@ const UsersComponent = () => {
       }
 
       if (!isAuthenticated || accounts.length === 0) {
-        console.log("Not authenticated, redirecting to login");
-        instance.loginRedirect(loginRequest);
+        console.log("Not authenticated, user should be redirected by parent page");
         return;
       }
 
@@ -223,16 +225,13 @@ const UsersComponent = () => {
         return;
       }
       
-      const tokenResponse = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getAccessToken(instance, accounts);
 
       const endpoint = buildApiEndpoint(false, query);
 
       const response = await axios.get(endpoint, {
         headers: {
-          Authorization: `Bearer ${tokenResponse.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'ConsistencyLevel': 'eventual',
         },
         signal: searchAbortControllerRef.current.signal,
@@ -273,15 +272,13 @@ const UsersComponent = () => {
       console.error('Error searching users:', error);
       setError(error.message || "Failed to search users");
       
+      const isAuthError = error.message?.includes("authentication") || error.message?.includes("token");
+      
       toast({
         title: "Search Error",
-        description: "Failed to search users from Azure AD",
+        description: isAuthError ? "Authentication expired. Please refresh the page." : "Failed to search users from Azure AD",
         variant: "destructive",
       });
-      
-      if (error.name === "InteractionRequiredAuthError") {
-        instance.acquireTokenRedirect(loginRequest);
-      }
     } finally {
       setSearchLoading(false);
     }
@@ -319,10 +316,7 @@ const UsersComponent = () => {
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const tokenResponse = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getAccessToken(instance, accounts);
 
       // Use nextLink for pagination or build new endpoint
       const endpoint = isLoadMore && nextLink 
@@ -331,7 +325,7 @@ const UsersComponent = () => {
 
       const response = await axios.get(endpoint, {
         headers: {
-          Authorization: `Bearer ${tokenResponse.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'ConsistencyLevel': 'eventual',
         },
       });
@@ -381,15 +375,13 @@ const UsersComponent = () => {
       console.error('Error fetching users:', error);
       setError(error.message || "Failed to fetch users");
       
+      const isAuthError = error.message?.includes("authentication") || error.message?.includes("token");
+      
       toast({
         title: "Error Fetching Users",
-        description: "Failed to fetch users from Azure AD",
+        description: isAuthError ? "Authentication expired. Please refresh the page." : "Failed to fetch users from Azure AD",
         variant: "destructive",
       });
-      
-      if (error.name === "InteractionRequiredAuthError") {
-        instance.acquireTokenRedirect(loginRequest);
-      }
     } finally {
       setLoading(false);
       setLoadingMore(false);

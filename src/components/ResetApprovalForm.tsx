@@ -25,10 +25,11 @@ import {
   Search,
 } from "lucide-react";
 import { useMsal } from "@azure/msal-react";
-import { loginRequest, clearAzureAuth, graphConfig } from "../authConfig";
+import { loginRequest, clearAzureAuth, graphConfig } from "../userAuthConfig";
 import axios from "axios";
 import Loader from "@/components/common/Loader";
 import debounce from 'lodash/debounce';
+import { getAccessToken } from '@/services/userService';
 
 interface AzureUser {
   id: string;
@@ -84,11 +85,7 @@ const ResetApprovalForm = () => {
   const searchAbortControllerRef = useRef<AbortController | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (accounts.length === 0) {
-      instance.loginRedirect(loginRequest);
-    }
-  }, [accounts]);
+  // Remove the automatic login redirect since authentication is handled at the page level
 
   // Optimized field selection for search
   const selectFields = ['displayName', 'userPrincipalName'].join(',');
@@ -108,10 +105,7 @@ const ResetApprovalForm = () => {
       // Create new AbortController for this search
       searchAbortControllerRef.current = new AbortController();
 
-      const tokenResponse = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getAccessToken(instance, accounts);
 
       // Build search filter - search in displayName, userPrincipalName, and mail
       const searchFilter = `startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}')`;
@@ -121,7 +115,7 @@ const ResetApprovalForm = () => {
 
       const response = await axios.get(endpoint, {
         headers: {
-          Authorization: `Bearer ${tokenResponse.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'ConsistencyLevel': 'eventual',
         },
         signal: searchAbortControllerRef.current.signal,
@@ -140,9 +134,11 @@ const ResetApprovalForm = () => {
       if (error.response?.status === 403) {
         throw new Error("Insufficient permissions to search users");
       } else if (error.response?.status === 401) {
-        // Try to refresh token
-        instance.acquireTokenRedirect(loginRequest);
-        throw new Error("Authentication required");
+        // Clear stored token if it's invalid
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem('accessToken');
+        }
+        throw new Error("Authentication required - please refresh the page");
       } else {
         throw new Error("Failed to search users");
       }
@@ -274,28 +270,30 @@ const ResetApprovalForm = () => {
     });
 
     try {
-      // Get token for Microsoft Graph API (using MSAL)
+      // Get token for Microsoft Graph API
       updateRequestState({ 
         message: "Authenticating with Microsoft Entra ID..."
       });
 
-      const tokenResponse = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getAccessToken(instance, accounts);
 
       // Check if request was cancelled
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
 
-      // Decode the idToken to extract user details
-      const decodedToken = jwtDecode<AzureJwtPayload>(tokenResponse.idToken);
+      // Get the idToken from session storage to extract user details
+      const idToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('idToken') : null;
+      if (!idToken) {
+        throw new Error("No ID token available");
+      }
+      
+      const decodedToken = jwtDecode<AzureJwtPayload>(idToken);
 
       // Extract relevant user details
       const userDetails = {
         name: decodedToken.name || "Unknown User", 
-        email: decodedToken.preferred_username || tokenResponse.account?.username || "unknown@email.com", 
+        email: decodedToken.preferred_username || "unknown@email.com", 
         tenantId: decodedToken.tid || "", 
         userObjectId: decodedToken.oid || "", 
       };
@@ -305,7 +303,7 @@ const ResetApprovalForm = () => {
       });
 
       // Send the push notification using the token and user details
-      await sendPushNotificationToUser(email, userDetails, tokenResponse.accessToken);
+      await sendPushNotificationToUser(email, userDetails, accessToken);
     } catch (error) {
       // Don't show error if request was cancelled
       if (abortControllerRef.current?.signal.aborted) {

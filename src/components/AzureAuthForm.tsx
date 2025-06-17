@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Lock, Key, Building, Loader2, Settings } from 'lucide-react';
-import { loginRequest, clearAzureAuth } from '../authConfig';
+import { loginRequest, clearAzureAuth } from '../userAuthConfig';
 import AzureConfigForm from './AzureConfigForm';
 
 const AzureAuthForm = () => {

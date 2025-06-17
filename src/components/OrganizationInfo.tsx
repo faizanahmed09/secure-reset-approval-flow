@@ -40,9 +40,9 @@ export const OrganizationInfo: React.FC<OrganizationInfoProps> = ({
       <div className={`flex items-center gap-2 ${className}`}>
         <Building2 className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">{organization.display_name}</span>
-        <Badge variant="secondary" className="text-xs">
+        {/* <Badge variant="secondary" className="text-xs">
           {organization.domain}
-        </Badge>
+        </Badge> */}
       </div>
     );
   }

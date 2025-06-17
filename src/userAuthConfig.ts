@@ -1,14 +1,9 @@
-/*
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License.
- */
-
-import { LogLevel } from "@azure/msal-browser";
+import { Configuration, RedirectRequest, LogLevel } from "@azure/msal-browser";
 
 /**
  * MSAL Configuration for Azure AD authentication
  */
-export const msalConfig = {
+export const msalConfig: Configuration = {
     auth: {
         clientId: "aad5399a-e678-4857-80be-a1664910d86a",
         authority: "https://login.microsoftonline.com/organizations",
@@ -26,28 +21,6 @@ export const msalConfig = {
         iframeHashTimeout: 6000,
         loadFrameTimeout: 0,
         allowRedirectInIframe: false,
-        loggerOptions: {	
-            loggerCallback: (level: LogLevel, message: string, containsPii: boolean) => {	
-                if (containsPii) return;
-                
-                switch (level) {
-                    case LogLevel.Error:
-                        console.error(message);
-                        return;
-                    case LogLevel.Info:
-                        console.info(message);
-                        return;
-                    case LogLevel.Verbose:
-                        console.debug(message);
-                        return;
-                    case LogLevel.Warning:
-                        console.warn(message);
-                        return;
-                    default:
-                        return;
-                }	
-            }	
-        }	
     }
 };
 
@@ -56,9 +29,9 @@ export const msalConfig = {
  */
 export const loginRequest = {
     scopes: [
-        "User.Read",
-        "User.Read.All",
-        "https://graph.microsoft.com/CrossTenantInformation.ReadBasic.All"
+        "https://graph.microsoft.com/User.ReadWrite.All",
+        "https://graph.microsoft.com/CrossTenantInformation.ReadBasic.All",
+        "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
     ],
     prompt: "select_account",
     responseMode: "fragment",

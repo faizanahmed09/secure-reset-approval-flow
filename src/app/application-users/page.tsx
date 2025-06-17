@@ -71,6 +71,33 @@ const ApplicationUsers = () => {
     }
   }, [isAuthenticated, user]);
 
+  // Monitor authentication state and handle session expiration
+  useEffect(() => {
+    const checkAuthState = () => {
+      // If we were authenticated but now we're not, and we're not currently loading
+      if (!isLoading && !isAuthenticated) {
+        // Check if tokens exist in session storage
+        const idToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('idToken') : null;
+        const accessToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('accessToken') : null;
+        
+        // If no tokens, redirect to index page
+        if (!idToken && !accessToken) {
+          console.log('No authentication tokens found, redirecting to index page');
+          toast({
+            title: 'Session Expired',
+            description: 'Your session has expired. Redirecting to login...',
+          });
+          
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        }
+      }
+    };
+
+    checkAuthState();
+  }, [isAuthenticated, isLoading]);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -160,9 +187,20 @@ const ApplicationUsers = () => {
         setAuthError(true);
         toast({
           title: 'Authentication Required',
-          description: 'Please re-authenticate to search users',
+          description: 'Your session has expired. Please re-authenticate to search users.',
           variant: 'destructive',
         });
+      } else if (error.message?.includes('No authentication available') || error.message?.includes('token')) {
+        // Token completely expired, redirect to index page
+        toast({
+          title: 'Session Expired',
+          description: 'Your session has expired. Redirecting to login...',
+          variant: 'destructive',
+        });
+        
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
       } else {
         toast({
           title: 'Error',
@@ -180,6 +218,18 @@ const ApplicationUsers = () => {
   const handleReAuthenticate = async () => {
     try {
       setAuthError(false);
+      
+      // Check if we have accounts available
+      if (!accounts || accounts.length === 0) {
+        // No accounts available, redirect to index page for fresh login
+        toast({
+          title: 'Authentication Required',
+          description: 'Redirecting to login page...',
+        });
+        window.location.href = '/';
+        return;
+      }
+      
       await instance.acquireTokenRedirect({
         ...loginRequest,
         account: accounts[0],
@@ -188,9 +238,14 @@ const ApplicationUsers = () => {
       console.error('Re-authentication failed:', error);
       toast({
         title: 'Authentication Error',
-        description: 'Failed to re-authenticate. Please try again.',
+        description: 'Redirecting to login page...',
         variant: 'destructive',
       });
+      
+      // Fallback: redirect to index page
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
     }
   };
 

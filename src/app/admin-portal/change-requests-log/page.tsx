@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { BeautifulLoader } from "@/app/loader";
 
 // Define types for the change request
 export type ChangeRequest = {
@@ -45,6 +48,8 @@ const getStoredTenantId = (): string => {
 
 const ChangeRequestsLog = () => {
   const { toast } = useToast();
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [filters, setFilters] = useState<FilterOptions>({
     search: "",
     status: "",
@@ -54,6 +59,21 @@ const ChangeRequestsLog = () => {
     pageSize: 10,
   });
   const [totalCount, setTotalCount] = useState(0);
+
+  // Show loader while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
+      </div>
+    );
+  }
+
+  // Redirect to admin portal if not authenticated
+  if (!isAuthenticated) {
+    router.push('/admin-portal');
+    return null;
+  }
   
   // Fetch total count for pagination
   useEffect(() => {
@@ -152,7 +172,7 @@ const ChangeRequestsLog = () => {
   };
 
   // Use React Query for data fetching with updated options for v5
-  const { data: changeRequests, isLoading, error, refetch } = useQuery({
+  const { data: changeRequests, isLoading: isTableLoading, error, refetch } = useQuery({
     queryKey: ['changeRequests', filters],
     queryFn: fetchChangeRequests,
     placeholderData: (previousData) => previousData // Modern replacement for keepPreviousData
@@ -201,7 +221,7 @@ const ChangeRequestsLog = () => {
         <div className="mt-6 border rounded-md">
           <ChangeRequestTable
             changeRequests={changeRequests || []}
-            isLoading={isLoading}
+            isLoading={isTableLoading}
             filters={filters}
             totalPages={totalPages}
             onFilterChange={handleFilterChange}

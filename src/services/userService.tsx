@@ -4,6 +4,62 @@ import { loginRequest } from '../userAuthConfig';
 
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
 
+/**
+ * Centralized function to get access token with fallback mechanisms
+ * First tries session storage, then falls back to MSAL silent token acquisition
+ */
+export const getAccessToken = async (
+  instance: IPublicClientApplication,
+  accounts: any[]
+): Promise<string> => {
+  // First try to get token from session storage
+  if (typeof window !== 'undefined') {
+    const storedToken = window.sessionStorage.getItem('accessToken');
+    if (storedToken) {
+      return storedToken;
+    }
+  }
+
+  // Fall back to MSAL if no stored token and accounts are available
+  if (accounts.length > 0) {
+    try {
+      // Ensure active account is set
+      if (!instance.getActiveAccount()) {
+        instance.setActiveAccount(accounts[0]);
+      }
+      
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+      
+      // Store the new token for future use
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('accessToken', tokenResponse.accessToken);
+      }
+      
+      return tokenResponse.accessToken;
+    } catch (error: any) {
+      // If silent token acquisition fails, clear stored token and throw error
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('accessToken');
+      }
+      
+      // Handle specific MSAL errors
+      if (error.name === "InteractionRequiredAuthError" || 
+          error.errorCode === "interaction_required" ||
+          error.errorCode === "consent_required" ||
+          error.errorCode === "login_required") {
+        throw new Error("INTERACTION_REQUIRED");
+      }
+      
+      throw error;
+    }
+  }
+
+  throw new Error("No authentication available - please refresh the page");
+};
+
 interface User {
   id: string;
   email: string;
@@ -38,45 +94,8 @@ export const searchAzureUsers = async (
       return [];
     }
 
-    // First try to get access token from session storage
-    let accessToken = null;
-    if (typeof window !== 'undefined') {
-      accessToken = window.sessionStorage.getItem('accessToken');
-    }
-
-    // If no token in session storage, try to acquire one
-    if (!accessToken) {
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No authenticated account found. Please log in again.');
-      }
-
-      try {
-        // Try silent token acquisition as fallback
-        const tokenResponse = await instance.acquireTokenSilent({
-          ...loginRequest,
-          account: accounts[0],
-        });
-        accessToken = tokenResponse.accessToken;
-        
-        // Store the new token in session storage for future use
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem('accessToken', accessToken);
-        }
-      } catch (error: any) {
-        // If silent token acquisition fails, check if it's an interaction required error
-        if (error.name === "InteractionRequiredAuthError" || 
-            error.errorCode === "interaction_required" ||
-            error.errorCode === "consent_required" ||
-            error.errorCode === "login_required") {
-          
-          // For service functions, we should throw a specific error that the component can handle
-          throw new Error('INTERACTION_REQUIRED');
-        }
-        
-        // For other errors, rethrow
-        throw error;
-      }
-    }
+    // Use centralized token function
+    const accessToken = await getAccessToken(instance, accounts);
 
     const selectFields = ['id', 'displayName', 'userPrincipalName'].join(',');
     const searchFilter = `startswith(displayName,'${searchQuery}') or startswith(userPrincipalName,'${searchQuery}')`;
