@@ -53,43 +53,16 @@ const ChangeRequestsLog = () => {
   });
   const [totalCount, setTotalCount] = useState(0);
 
-  // Show loader while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <BeautifulLoader />
-      </div>
-    );
-  }
+  // Get tenant ID from authenticated user (only if user exists)
+  const tenantId = user?.tenant_id;
 
-  // Redirect to admin portal if not authenticated
-  if (!isAuthenticated || !user) {
-    router.push('/admin-portal');
-    return null;
-  }
-
-  // Get tenant ID from authenticated user
-  const tenantId = user.tenant_id;
-
-  // If no tenant ID available, show error
-  if (!tenantId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2 text-red-600">Missing Tenant Information</h2>
-          <p className="text-gray-600 mb-4">Unable to load change requests without tenant information.</p>
-          <Link href="/admin-portal">
-            <Button>Return to Admin Portal</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-  
   // Fetch total count for pagination
   useEffect(() => {
     const fetchTotalCount = async () => {
       try {
+        // Only proceed if we have a tenant ID
+        if (!tenantId) return;
+
         // Now try with filters
         let query : any = supabase
           .from('change_requests')
@@ -127,9 +100,7 @@ const ChangeRequestsLog = () => {
       }
     };
     
-    if (tenantId) {
-      fetchTotalCount();
-    }
+    fetchTotalCount();
   }, [filters.search, filters.status, tenantId, toast]);
 
   // Calculate pagination range
@@ -209,6 +180,38 @@ const ChangeRequestsLog = () => {
 
   // Calculate total pages
   const totalPages = Math.ceil(totalCount / filters.pageSize);
+
+  // All hooks are called above this point - now we can have conditional returns
+
+  // Show loader while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
+      </div>
+    );
+  }
+
+  // Redirect to admin portal if not authenticated
+  if (!isAuthenticated || !user) {
+    router.push('/admin-portal');
+    return null;
+  }
+
+  // If no tenant ID available, show error
+  if (!tenantId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-red-600">Missing Tenant Information</h2>
+          <p className="text-gray-600 mb-4">Unable to load change requests without tenant information.</p>
+          <Link href="/admin-portal">
+            <Button>Return to Admin Portal</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
