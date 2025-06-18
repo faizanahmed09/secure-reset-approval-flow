@@ -14,16 +14,21 @@ function extractDomainFromEmail(email: string): string {
   return domain ? domain.toLowerCase() : "";
 }
 
-// Helper function to create or get organization
+// Helper function to create organization name from domain
+function createOrganizationName(domain: string): string {
+  const baseName = domain.split(".")[0];
+  return baseName.charAt(0).toUpperCase() + baseName.slice(1);
+}
+
+// Helper function to create or get organization based on email domain
 async function createOrGetOrganization(
   supabase: any,
   email: string,
-  organizationDetails: any,
   tenantId: string,
   clientId: string
 ) {
   const domain = extractDomainFromEmail(email);
-  console.log("Organization:", organizationDetails);
+  console.log("Processing organization for domain:", domain);
 
   if (!domain) {
     throw new Error("Invalid email domain");
@@ -47,16 +52,12 @@ async function createOrGetOrganization(
     return existingOrg;
   }
 
-  // Organization doesn't exist, create new one using Microsoft Graph API details
+  // Organization doesn't exist, create new one based on email domain
+  const organizationName = createOrganizationName(domain);
   const newOrganization = {
-    name:
-      organizationDetails?.defaultDomainName?.split(".")[0] ||
-      domain.split(".")[0],
-    domain: organizationDetails?.defaultDomainName || domain,
-    display_name:
-      organizationDetails?.displayName ||
-      domain.split(".")[0].charAt(0).toUpperCase() +
-        domain.split(".")[0].slice(1),
+    name: organizationName.toLowerCase(),
+    domain: domain,
+    display_name: organizationName,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -94,37 +95,6 @@ async function createOrGetOrganization(
   return createdOrg;
 }
 
-// Helper function to find organization by tenant ID
-async function findOrganizationByTenantId(supabase: any, tenantId: string) {
-  const { data: orgConfig, error: configError } = await supabase
-    .from("organization_configuration")
-    .select("organization_id")
-    .eq("tenant_id", tenantId)
-    .single();
-
-  if (configError) {
-    console.error("Error finding organization by tenant ID:", configError);
-    return null;
-  }
-
-  if (!orgConfig) {
-    return null;
-  }
-
-  const { data: organization, error: orgError } = await supabase
-    .from("organizations")
-    .select("*")
-    .eq("id", orgConfig.organization_id)
-    .single();
-
-  if (orgError) {
-    console.error("Error fetching organization:", orgError);
-    return null;
-  }
-
-  return organization;
-}
-
 // Helper function to check if organization has any admin users
 async function hasAdminUsers(supabase: any, organizationId: string) {
   const { data: adminUsers, error } = await supabase
@@ -151,7 +121,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { userInfo, organizationDetails } = body;
+    const { userInfo } = body; // Removed organizationDetails as it's no longer needed
 
     if (!userInfo || !userInfo.email) {
       return new Response(
@@ -190,38 +160,30 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find existing organization by tenant ID
-    let organization = await findOrganizationByTenantId(
-      supabase,
-      userInfo.tenantId
-    );
-
-    // If organization doesn't exist, create new one
-    if (!organization) {
-      try {
-        organization = await createOrGetOrganization(
-          supabase,
-          userInfo.email,
-          organizationDetails,
-          userInfo.tenantId,
-          userInfo.clientId
-        );
-      } catch (orgError) {
-        console.error("Organization error:", orgError);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "Failed to process organization",
-          }),
-          {
-            status: 500,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      }
+    // Create or get organization based on email domain
+    let organization;
+    try {
+      organization = await createOrGetOrganization(
+        supabase,
+        userInfo.email,
+        userInfo.tenantId,
+        userInfo.clientId
+      );
+    } catch (orgError) {
+      console.error("Organization error:", orgError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Failed to process organization",
+        }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
     }
 
     // Check if user exists
@@ -275,6 +237,7 @@ serve(async (req) => {
 
       if (updateError) {
         console.error("Error updating user:", updateError);
+        // Return existing user data if update fails
         return new Response(
           JSON.stringify({
             success: true,

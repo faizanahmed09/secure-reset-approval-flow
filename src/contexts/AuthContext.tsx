@@ -83,28 +83,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }
 
-      // Fetch organization details from Microsoft Graph API
+      // Extract organization details from email domain (old flow)
       let organizationDetails = null;
-      if (userInfo.tenantId && accessToken) {
+      if (userInfo.email) {
         try {
-          const graphResponse = await fetch(
-            `https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='${userInfo.tenantId}')`,
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          console.log("Graph API response:", graphResponse);
-
-          if (graphResponse.ok) {
-            organizationDetails = await graphResponse.json();
-          } else {
-            console.warn('Failed to fetch organization details from Graph API');
+          const emailDomain = userInfo.email.split('@')[1];
+          if (emailDomain) {
+            organizationDetails = {
+              domain: emailDomain,
+              displayName: emailDomain.split('.')[0], // Use domain name as display name
+            };
+            console.log("Organization details from email:", organizationDetails);
           }
         } catch (error) {
-          console.warn('Error fetching organization details:', error);
+          console.warn('Error extracting organization from email:', error);
         }
       }
 
