@@ -250,7 +250,6 @@ const ApplicationUsers = () => {
   };
 
   const handleCreateUser = async (azureUser: AzureUser) => {
-    // debugger;
     if (!user?.organization_id || !user?.tenant_id || !user?.client_id) {
       toast({
         title: 'Error',

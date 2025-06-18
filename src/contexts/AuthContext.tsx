@@ -38,7 +38,10 @@ interface AuthContextType {
   user: User | null
   isLoading: boolean
   isAuthenticated: boolean
+  needsOrganizationSetup: boolean
   refreshUser: () => Promise<void>
+  updateUser: (updatedUser: User) => void
+  markOrganizationSetupCompleted: () => void
   handleLoginRedirect: (instance: IPublicClientApplication) => Promise<void>
   handleLogout: (instance: IPublicClientApplication) => Promise<void>
   processUserFromToken: (idToken: string, accessToken?: string) => Promise<User | null>
@@ -50,9 +53,41 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
+// Helper function to check if user needs organization setup
+const checkNeedsOrganizationSetup = (user: User | null): boolean => {
+  if (!user || user.role !== 'admin') {
+    return false;
+  }
+
+  // Check if organization setup has been completed or skipped in this session
+  if (typeof window !== 'undefined') {
+    const setupCompleted = window.sessionStorage.getItem('organizationSetupCompleted');
+    if (setupCompleted === 'true') {
+      return false;
+    }
+  }
+
+  // Check if this is the user's first login (created_at and last_login_at are very close)
+  if (user.created_at && user.last_login_at) {
+    const createdAt = new Date(user.created_at);
+    const lastLoginAt = new Date(user.last_login_at);
+    const timeDifference = Math.abs(lastLoginAt.getTime() - createdAt.getTime());
+    
+    // If the difference is less than 2 minutes, consider it a first login
+    const isFirstLogin = timeDifference < 2 * 60 * 1000;
+    
+    return isFirstLogin;
+  }
+
+  return false;
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Calculate if user needs organization setup
+  const needsOrganizationSetup = checkNeedsOrganizationSetup(user);
 
   // Function to process user from token
   const processUserFromToken = useCallback(async (idToken: string, accessToken?: string) => {
@@ -83,24 +118,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }
 
-      // Extract organization details from email domain (old flow)
-      let organizationDetails = null;
-      if (userInfo.email) {
-        try {
-          const emailDomain = userInfo.email.split('@')[1];
-          if (emailDomain) {
-            organizationDetails = {
-              domain: emailDomain,
-              displayName: emailDomain.split('.')[0], // Use domain name as display name
-            };
-            console.log("Organization details from email:", organizationDetails);
-          }
-        } catch (error) {
-          console.warn('Error extracting organization from email:', error);
-        }
-      }
-
-      // Call the edge function to handle user creation/verification
+      // Call the edge function to handle user creation/verification (removed organizationDetails)
       const apiResponse = await fetch(
         `${SUPABASE_URL}/functions/v1/manage-user`,
         {
@@ -109,8 +127,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userInfo,
-            organizationDetails
+            userInfo
           }),
         }
       );
@@ -171,6 +188,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     await fetchUser();
   }, [fetchUser]);
 
+  const markOrganizationSetupCompleted = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('organizationSetupCompleted', 'true');
+    }
+  }, []);
+
   const handleLoginRedirect = useCallback(async (instance: IPublicClientApplication) => {
     setIsLoading(true);
     try {
@@ -198,6 +221,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         window.sessionStorage.removeItem('currentUser');
         window.sessionStorage.removeItem('userProcessed');
         window.sessionStorage.removeItem('mfaSecretChecked');
+        window.sessionStorage.removeItem('organizationSetupCompleted');
       }
       
       setUser(null);
@@ -214,6 +238,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, []);
 
+  const updateUser = useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -221,6 +249,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         user,
         isLoading,
         isAuthenticated: !!user,
+        needsOrganizationSetup,
+        updateUser,
+        markOrganizationSetupCompleted,
         handleLoginRedirect,
         handleLogout,
         processUserFromToken,

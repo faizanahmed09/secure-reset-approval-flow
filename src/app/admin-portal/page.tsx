@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
-  const { user, isLoading, isAuthenticated, handleLogout } = useAuth();
+  const { user, isLoading, isAuthenticated, needsOrganizationSetup, handleLogout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [checkingMfa, setCheckingMfa] = useState(false);
@@ -43,6 +43,14 @@ const Index = () => {
     }
   }, [inProgress]);
 
+  // Check for organization setup need and redirect if necessary
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && needsOrganizationSetup) {
+      router.push('/organization-setup');
+      return;
+    }
+  }, [isLoading, isAuthenticated, needsOrganizationSetup, router]);
+
   // MFA check logic
   useEffect(() => {
     const mfaAlreadyChecked = getMfaCheckedStatus();
@@ -53,7 +61,8 @@ const Index = () => {
       !checkingMfa && 
       !mfaAlreadyChecked &&
       !isLoading && 
-      isAuthenticated
+      isAuthenticated &&
+      !needsOrganizationSetup // Only run MFA check if not redirecting to organization setup
     ) {
       const verifyMfaSecret = async () => {
         setCheckingMfa(true);
@@ -99,7 +108,7 @@ const Index = () => {
 
       verifyMfaSecret();
     }
-  }, [accounts, inProgress, checkingMfa, instance, toast, isLoading, isAuthenticated]);
+  }, [accounts, inProgress, checkingMfa, instance, toast, isLoading, isAuthenticated, needsOrganizationSetup]);
 
   const handleLogoutClick = async () => {
     try {
@@ -139,6 +148,15 @@ const Index = () => {
   if (!isAuthenticated) {
     router.push('/');
     return null;
+  }
+
+  // Show loader while redirecting to organization setup
+  if (needsOrganizationSetup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
+      </div>
+    );
   }
 
   // Role-based button rendering

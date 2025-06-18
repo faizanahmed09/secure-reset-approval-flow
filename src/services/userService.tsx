@@ -145,7 +145,6 @@ export const createDatabaseUser = async (
   tenantId: string,
   clientId: string
 ): Promise<User> => {
-  debugger;
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
       method: 'POST',
