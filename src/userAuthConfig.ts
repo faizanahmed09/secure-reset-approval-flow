@@ -31,6 +31,7 @@ export const loginRequest = {
     scopes: [
         "https://graph.microsoft.com/User.ReadWrite.All",
         "https://graph.microsoft.com/CrossTenantInformation.ReadBasic.All",
+        'https://graph.microsoft.com/Application.ReadWrite.All',
         "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
     ],
     prompt: "select_account",
