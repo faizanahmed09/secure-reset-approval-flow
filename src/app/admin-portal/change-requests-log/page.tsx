@@ -39,13 +39,6 @@ export type FilterOptions = {
   pageSize: number;
 };
 
-const getStoredTenantId = (): string => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem('azureTenantId') || "";
-  }
-  return ""; // No default tenant ID
-};
-
 const ChangeRequestsLog = () => {
   const { toast } = useToast();
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -70,21 +63,38 @@ const ChangeRequestsLog = () => {
   }
 
   // Redirect to admin portal if not authenticated
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     router.push('/admin-portal');
     return null;
+  }
+
+  // Get tenant ID from authenticated user
+  const tenantId = user.tenant_id;
+
+  // If no tenant ID available, show error
+  if (!tenantId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-red-600">Missing Tenant Information</h2>
+          <p className="text-gray-600 mb-4">Unable to load change requests without tenant information.</p>
+          <Link href="/admin-portal">
+            <Button>Return to Admin Portal</Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
   
   // Fetch total count for pagination
   useEffect(() => {
     const fetchTotalCount = async () => {
       try {
-        
         // Now try with filters
         let query : any = supabase
           .from('change_requests')
           .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', getStoredTenantId())
+          .eq('tenant_id', tenantId)
         
         // Apply search filter if provided
         if (filters.search) {
@@ -117,8 +127,10 @@ const ChangeRequestsLog = () => {
       }
     };
     
-    fetchTotalCount();
-  }, [filters.search, filters.status, toast]);
+    if (tenantId) {
+      fetchTotalCount();
+    }
+  }, [filters.search, filters.status, tenantId, toast]);
 
   // Calculate pagination range
   const getPaginationRange = (page: number, pageSize: number) => {
@@ -130,7 +142,10 @@ const ChangeRequestsLog = () => {
   // Fetch change requests with filters, sorting, and pagination
   const fetchChangeRequests = async () => {
     try {
-      const tenantId = getStoredTenantId();
+      if (!tenantId) {
+        console.warn("No tenant ID available for fetching change requests");
+        return [];
+      }
       
       const { from, to } = getPaginationRange(filters.page, filters.pageSize);
   
@@ -173,9 +188,10 @@ const ChangeRequestsLog = () => {
 
   // Use React Query for data fetching with updated options for v5
   const { data: changeRequests, isLoading: isTableLoading, error, refetch } = useQuery({
-    queryKey: ['changeRequests', filters],
+    queryKey: ['changeRequests', filters, tenantId],
     queryFn: fetchChangeRequests,
-    placeholderData: (previousData) => previousData // Modern replacement for keepPreviousData
+    placeholderData: (previousData) => previousData, // Modern replacement for keepPreviousData
+    enabled: !!tenantId // Only run query if tenantId is available
   });
 
   // Handle filter changes
