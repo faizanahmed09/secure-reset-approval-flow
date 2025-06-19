@@ -33,7 +33,7 @@ const ResetApproval = () => {
       <main className="flex-1 container py-12">
         <div className="flex flex-col items-center">
           <div className="max-w-md w-full space-y-8">
-            <ResetApprovalForm />
+              <ResetApprovalForm />
           </div>
         </div>
         {/* button to show to top left corner of page */}

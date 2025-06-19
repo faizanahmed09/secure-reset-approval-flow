@@ -30,9 +30,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const initializeMsal = async () => {
       // Prevent double initialization in StrictMode
       if (msalInitialized) {
-        setIsInitialized(true);
-        return;
-      }
+          setIsInitialized(true);
+          return;
+        }
 
       try {
         // Initialize MSAL instance
@@ -126,20 +126,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <MsalProvider instance={msalInstance}>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
-          </MsalProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <MsalProvider instance={msalInstance}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </MsalProvider>
           <Toaster />
           <Sonner />
-        </ThemeProvider>
+      </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>
   )

@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       // Logout from MSAL
       await instance.logoutRedirect({
-        postLogoutRedirectUri: window.location.origin,
+        postLogoutRedirectUri: "https://authenpush.com",
       });
     } catch (error) {
       console.error('Error during logout:', error);

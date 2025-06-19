@@ -713,25 +713,6 @@ const processInitialResponse = (data: any, email : string) => {
     }
   };
 
-  // Help text component
-  const getHelpText = () => {
-    if (resetReq.status !== 'idle') return null;
-    
-    return (
-      <div className="text-xs text-gray-500 mt-2">
-        <div className="bg-muted/50 p-4 rounded-md border">
-          <h3 className="text-sm font-medium mb-2">Process Information:</h3>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Search for users across your organization</li>
-            <li>• System sends a secure push notification to the user</li>
-            <li>• User approves or rejects the request</li>
-            <li>• On approval, you can change the user's details</li>
-          </ul>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
@@ -801,7 +782,19 @@ const processInitialResponse = (data: any, email : string) => {
           renderStatus()
         )}
 
-        {getHelpText()}
+        {resetReq.status === 'idle' && (
+          <div className="text-xs text-gray-500 mt-2">
+            <div className="bg-muted/50 p-4 rounded-md border">
+              <h3 className="text-sm font-medium mb-2">Process Information:</h3>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li key="search-process">• Search for users across your organization</li>
+                <li key="notification-process">• System sends a secure push notification to the user</li>
+                <li key="approval-process">• User approves or rejects the request</li>
+                <li key="change-process">• On approval, you can change the user's details</li>
+              </ul>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="flex flex-col">

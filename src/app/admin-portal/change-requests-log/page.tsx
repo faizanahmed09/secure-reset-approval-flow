@@ -55,14 +55,14 @@ const ChangeRequestsLog = () => {
 
   // Get tenant ID from authenticated user (only if user exists)
   const tenantId = user?.tenant_id;
-
+  
   // Fetch total count for pagination
   useEffect(() => {
     const fetchTotalCount = async () => {
       try {
         // Only proceed if we have a tenant ID
         if (!tenantId) return;
-
+        
         // Now try with filters
         let query : any = supabase
           .from('change_requests')

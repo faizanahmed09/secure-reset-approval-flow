@@ -8,7 +8,7 @@ export const msalConfig: Configuration = {
         clientId: "aad5399a-e678-4857-80be-a1664910d86a",
         authority: "https://login.microsoftonline.com/organizations",
         redirectUri: (typeof window !== "undefined" ? `${window.location.origin}/auth-callback` : "http://localhost:3000/auth-callback"),
-        postLogoutRedirectUri: ( typeof window !== "undefined" ? `${window.location.origin}/` : "http://localhost:3000/"),
+        postLogoutRedirectUri: "https://authenpush.com",
         navigateToLoginRequestUrl: false,
     },
     cache: {
@@ -30,9 +30,28 @@ export const msalConfig: Configuration = {
 export const loginRequest = {
     scopes: [
         "https://graph.microsoft.com/User.ReadWrite.All",
-        "https://graph.microsoft.com/CrossTenantInformation.ReadBasic.All",
+        "https://graph.microsoft.com/Application.ReadWrite.All",
+        "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
+        "openid",
+        "profile",
+        "email"
+    ],
+    prompt: "select_account",
+    responseMode: "fragment",
+    responseType: "id_token token"
+};
+
+/**
+ * Admin login request configuration (requires admin consent)
+ */
+export const adminLoginRequest = {
+    scopes: [
+        "https://graph.microsoft.com/User.ReadWrite.All",
         'https://graph.microsoft.com/Application.ReadWrite.All',
         "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
+        "openid",
+        "profile",
+        "email"
     ],
     prompt: "select_account",
     responseMode: "fragment",
