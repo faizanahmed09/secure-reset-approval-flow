@@ -222,6 +222,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         window.sessionStorage.removeItem('userProcessed');
         window.sessionStorage.removeItem('mfaSecretChecked');
         window.sessionStorage.removeItem('organizationSetupCompleted');
+        window.sessionStorage.removeItem('msalInitialized'); // Clear MSAL initialization status
       }
       
       setUser(null);

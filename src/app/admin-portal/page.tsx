@@ -43,6 +43,13 @@ const Index = () => {
     }
   }, [inProgress]);
 
+  // Handle redirect for unauthenticated users
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
   // Check for organization setup need and redirect if necessary
   useEffect(() => {
     if (!isLoading && isAuthenticated && needsOrganizationSetup) {
@@ -144,10 +151,13 @@ const Index = () => {
     );
   }
 
-  // Redirect to index page if not authenticated
+  // Show loader while redirecting to index page if not authenticated
   if (!isAuthenticated) {
-    router.push('/');
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
+      </div>
+    );
   }
 
   // Show loader while redirecting to organization setup

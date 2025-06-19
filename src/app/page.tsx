@@ -1,49 +1,49 @@
 'use client';
 
 import { useMsal } from '@azure/msal-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import Loader from '@/components/common/Loader';
 
 const Index = () => {
   const { instance } = useMsal();
   const { handleLoginRedirect, isLoading, isAuthenticated } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const handleLogin = async () => {
-    try {
-      await handleLoginRedirect(instance);
-    } catch (error) {
-      console.error('Error during login:', error);
+  // Simple auto-login with a brief delay for all users
+  useEffect(() => {
+    if (!isAuthenticated && !isLoading && !isRedirecting) {
+      // Small delay to let users see the welcome screen briefly
+      const timer = setTimeout(() => {
+        setIsRedirecting(true);
+        handleLoginRedirect(instance).catch((error) => {
+          console.error('Error during auto-login:', error);
+          setIsRedirecting(false);
+        });
+      }, 1500); // 1.5 second delay for all users
+
+      return () => clearTimeout(timer);
     }
-  };
+  }, [instance, handleLoginRedirect, isAuthenticated, isLoading, isRedirecting]);
 
-  // If user is already authenticated, redirect to admin portal
+  // Handle redirect for authenticated users
+  useEffect(() => {
+    if (isAuthenticated) {
+      window.location.href = '/admin-portal';
+    }
+  }, [isAuthenticated]);
+
+  // If user is already authenticated, show loading state while redirecting
   if (isAuthenticated) {
-    window.location.href = '/admin-portal';
     return null;
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl">Welcome</CardTitle>
-          <CardDescription className="text-center">
-            Sign in with your Microsoft account to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          <Button
-            onClick={handleLogin}
-            disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md flex items-center gap-2"
-          >
-            <Shield className="h-5 w-5" />
-            {isLoading ? 'Signing in...' : 'Sign in with Microsoft'}
-          </Button>
-        </CardContent>
-      </Card>
+      <Loader 
+        text="Welcome to AuthenPush" 
+        subtext="Redirecting to Microsoft sign-in..."
+      />
     </div>
   );
 };

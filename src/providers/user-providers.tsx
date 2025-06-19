@@ -16,28 +16,63 @@ const queryClient = new QueryClient()
 // Initialize the MSAL application object
 const msalInstance = new PublicClientApplication(msalConfig);
 
-// Flag to prevent double initialization in StrictMode
-let msalInitialized = false;
+// Check if MSAL was already initialized in this session
+const getMsalInitializedStatus = () => {
+  if (typeof window !== 'undefined') {
+    return window.sessionStorage.getItem('msalInitialized') === 'true';
+  }
+  return false;
+};
+
+// Set MSAL initialized status in session storage
+const setMsalInitializedStatus = (initialized: boolean) => {
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.setItem('msalInitialized', String(initialized));
+  }
+};
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [isInitialized, setIsInitialized] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Ensure we're on the client side before checking sessionStorage
+  useEffect(() => {
+    setIsClient(true);
+    // Only check sessionStorage after we're on the client
+    const alreadyInitialized = getMsalInitializedStatus();
+    if (alreadyInitialized) {
+      setIsInitialized(true);
+    }
+  }, []);
 
   useEffect(() => {
+    // Don't run if we're not on the client yet
+    if (!isClient) return;
+
     let eventCallbackId: string | null = null;
+    let isMounted = true;
 
     const initializeMsal = async () => {
-      // Prevent double initialization in StrictMode
-      if (msalInitialized) {
+      // Check if already initialized in this session
+      const alreadyInitialized = getMsalInitializedStatus();
+      
+      if (alreadyInitialized) {
+        console.log('🔄 MSAL already initialized in this session, skipping');
+        if (isMounted) {
           setIsInitialized(true);
-          return;
         }
+        return;
+      }
 
       try {
+        console.log('🔄 Starting MSAL initialization');
         // Initialize MSAL instance
         await msalInstance.initialize()
-        msalInitialized = true;
+        
+        // Mark as initialized in session storage
+        setMsalInitializedStatus(true);
+        console.log('✅ MSAL initialization complete');
         
         // Add event callback for debugging and monitoring (only once)
         eventCallbackId = msalInstance.addEventCallback((event) => {
@@ -81,10 +116,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           console.log('✅ Active account set from existing accounts:', accounts[0].username);
         }
         
-        setIsInitialized(true)
+        if (isMounted) {
+          setIsInitialized(true);
+        }
       } catch (error) {
-        setError('Failed to initialize MSAL. Please refresh the page.')
-        console.error('❌ MSAL initialization error:', error)
+        console.error('❌ MSAL initialization error:', error);
+        if (isMounted) {
+          setError('Failed to initialize MSAL. Please refresh the page.');
+        }
       }
     }
 
@@ -92,11 +131,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     // Cleanup function to remove event callback
     return () => {
+      isMounted = false;
       if (eventCallbackId) {
         msalInstance.removeEventCallback(eventCallbackId);
       }
     }
-  }, [])
+  }, [isClient])
+
+  // Show nothing during SSR to prevent hydration mismatch
+  if (!isClient) {
+    return null;
+  }
 
   if (error) {
     return (
@@ -116,6 +161,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   if (!isInitialized) {
+    console.log('🔄 Showing MSAL initialization loader');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader text="Initializing authentication..." subtext="Please wait..." />
