@@ -245,3 +245,28 @@ export const updateUser = async (
   }
 };
 
+/**
+ * Delete a user from the database
+ */
+export const deleteUser = async (userId: string, adminEmail: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, adminEmail }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to delete user');
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    throw new Error(error.message || 'An unexpected error occurred');
+  }
+};
+

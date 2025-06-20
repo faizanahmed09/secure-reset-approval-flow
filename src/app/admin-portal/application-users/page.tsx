@@ -9,14 +9,24 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Users, Edit, Save, X, Search, Plus, UserPlus, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Users, Edit, Save, X, Search, Plus, UserPlus, AlertCircle, Building2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { BeautifulLoader } from '@/app/loader';
-import { fetchOrganizationUsers, updateUser, searchAzureUsers, createDatabaseUser } from '@/services/userService';
+import { fetchOrganizationUsers, updateUser, searchAzureUsers, createDatabaseUser, deleteUser } from '@/services/userService';
+import { organizationService } from '@/services/organizationService';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/userAuthConfig';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from '@/components/ui/dialog';
 
 interface User {
   id: string;
@@ -46,7 +56,7 @@ interface AzureUser {
 }
 
 const ApplicationUsers = () => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, refreshUser } = useAuth();
   const { instance, accounts } = useMsal();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
@@ -54,6 +64,11 @@ const ApplicationUsers = () => {
   const [editingUser, setEditingUser] = useState<EditingUser | null>(null);
   const [saving, setSaving] = useState(false);
   
+  // Organization editing states
+  const [isEditingOrg, setIsEditingOrg] = useState(false);
+  const [orgName, setOrgName] = useState('');
+  const [savingOrg, setSavingOrg] = useState(false);
+
   // Azure user search states
   const [searchQuery, setSearchQuery] = useState('');
   const [azureUsers, setAzureUsers] = useState<AzureUser[]>([]);
@@ -63,11 +78,17 @@ const ApplicationUsers = () => {
   const [creatingUser, setCreatingUser] = useState(false);
   const [authError, setAuthError] = useState(false);
 
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchUsers();
+      if (user.organizations) {
+        setOrgName(user.organizations.display_name);
+      }
     }
   }, [isAuthenticated, user]);
 
@@ -164,6 +185,47 @@ const ApplicationUsers = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveOrganization = async () => {
+    if (!user || !user.organization_id || !orgName.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Organization name cannot be empty',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingOrg(true);
+    try {
+      const result = await organizationService.updateOrganization({
+        organizationId: user.organization_id,
+        organizationName: orgName,
+        userEmail: user.email,
+      });
+
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'Organization name updated successfully',
+        });
+        setIsEditingOrg(false);
+        // Refresh user context to get updated organization name
+        await refreshUser();
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      console.error('Error updating organization:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update organization',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingOrg(false);
     }
   };
 
@@ -315,6 +377,33 @@ const ApplicationUsers = () => {
     });
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !user) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteUser(userToDelete.id, user.email);
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'User deleted successfully',
+        });
+        setUsers(users.filter(u => u.id !== userToDelete.id));
+        setUserToDelete(null);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete user',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -351,10 +440,35 @@ const ApplicationUsers = () => {
               <Users className="h-6 w-6" />
               Application Users
             </h1>
-            <p className="text-muted-foreground">
-              Manage users in your organization
-            </p>
           </div>
+        </div>
+        <div className="flex items-center gap-2 text-foreground">
+          <Building2 className="h-4 w-4" />
+          {isEditingOrg ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                className="h-8"
+                disabled={savingOrg}
+              />
+              <Button size="sm" onClick={handleSaveOrganization} disabled={savingOrg}>
+                {savingOrg ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Save className="h-4 w-4" />}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setIsEditingOrg(false); setOrgName(user?.organizations?.display_name || ''); }} disabled={savingOrg}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{user?.organizations?.display_name || 'Organization'}</span>
+              {isAdmin && (
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingOrg(true)}>
+                  <Edit className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -519,7 +633,7 @@ const ApplicationUsers = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
-                    <TableHead>Tenant ID</TableHead>
+                    {/* <TableHead>Tenant ID</TableHead> */}
                     <TableHead>Organization</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
@@ -528,13 +642,13 @@ const ApplicationUsers = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell className="font-mono text-sm">{user.tenant_id}</TableCell>
-                      <TableCell>{user.organizations?.display_name || 'N/A'}</TableCell>
+                  {users.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.email}</TableCell>
+                      {/* <TableCell className="font-mono text-sm">{u.tenant_id}</TableCell> */}
+                      <TableCell>{u.organizations?.display_name || 'N/A'}</TableCell>
                       <TableCell>
-                        {editingUser?.id === user.id ? (
+                        {editingUser?.id === u.id ? (
                           <Select
                             value={editingUser.role}
                             onValueChange={(value: 'admin' | 'verifier' | 'basic') =>
@@ -551,13 +665,13 @@ const ApplicationUsers = () => {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Badge variant={user.role === 'admin' ? 'default' : user.role === 'verifier' ? 'secondary' : 'outline'}>
-                            {user.role}
+                          <Badge variant={u.role === 'admin' ? 'default' : u.role === 'verifier' ? 'secondary' : 'outline'}>
+                            {u.role}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        {editingUser?.id === user.id ? (
+                        {editingUser?.id === u.id ? (
                           <Switch
                             checked={editingUser.is_active}
                             onCheckedChange={(checked) =>
@@ -565,15 +679,15 @@ const ApplicationUsers = () => {
                             }
                           />
                         ) : (
-                          <Badge variant={user.is_active ? 'default' : 'destructive'}>
-                            {user.is_active ? 'Active' : 'Inactive'}
+                          <Badge variant={u.is_active ? 'default' : 'destructive'}>
+                            {u.is_active ? 'Active' : 'Inactive'}
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>{formatDate(user.last_login_at)}</TableCell>
+                      <TableCell>{formatDate(u.last_login_at)}</TableCell>
                       {isAdmin && (
                         <TableCell>
-                          {editingUser?.id === user.id ? (
+                          {editingUser?.id === u.id ? (
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -592,13 +706,34 @@ const ApplicationUsers = () => {
                               </Button>
                             </div>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(user)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleEdit(u)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Dialog open={!!userToDelete && userToDelete.id === u.id} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="destructive" onClick={() => setUserToDelete(u)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Are you sure?</DialogTitle>
+                                    <DialogDescription>
+                                      This action will permanently delete the user <span className="font-bold">{userToDelete?.email}</span>. This cannot be undone.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <DialogFooter>
+                                    <DialogClose asChild>
+                                      <Button variant="outline">Cancel</Button>
+                                    </DialogClose>
+                                    <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
+                                      {isDeleting ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : 'Delete'}
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
                           )}
                         </TableCell>
                       )}

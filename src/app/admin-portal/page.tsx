@@ -5,12 +5,11 @@ import Footer from '@/components/Footer';
 import { useMsal } from '@azure/msal-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link'
-import { FileText, LogOut, Loader2, Users, ArrowRight, Shield } from 'lucide-react';
+import { FileText, LogOut, Loader2, Users, ArrowRight, Shield, Settings, Send, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { checkMfaSecret } from '../../services/mfaSecretService';
 import { useAuth } from '@/contexts/AuthContext';
 import { MfaConfigLoader, BeautifulLoader } from '@/app/loader';
-import { OrganizationInfo } from '@/components/OrganizationInfo';
 import { useRouter } from 'next/navigation';
 
 const Index = () => {
@@ -178,13 +177,13 @@ const Index = () => {
     const userRole = user?.role;
     
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 w-full">
         {/* Admin can see all options, Verifier can see Start Verify User Process */}
         {(userRole === 'admin' || userRole === 'verifier') && (
           <Link href="/admin-portal/reset-approval" className="w-full">
-            <Button className="w-full">
-              <ArrowRight className="mr-2 h-4 w-4" />
-              Start Verify User Process
+            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+              <Send className="mr-2 h-4 w-4" />
+              Verify user
             </Button>
           </Link>
         )}
@@ -193,7 +192,7 @@ const Index = () => {
         <Link href="/admin-portal/users" className="w-full">
           <Button variant="outline" className="w-full">
             <Users className="mr-2 h-4 w-4" />
-            Manage Azure Users
+            All users
           </Button>
         </Link>
         
@@ -201,22 +200,19 @@ const Index = () => {
         <Link href="/admin-portal/change-requests-log" className="w-full">
           <Button variant="outline" className="w-full flex items-center">
             <FileText className="mr-2 h-4 w-4" />
-            View Verify User Request Logs
+            Verification log
           </Button>
         </Link>
         
-        {/* All authenticated users can see Manage Organization Users */}
-        {user?.organizations && (
-          <Link href="/application-users" className="w-full">
+        {/* only Admin and verifier can see Manage Organization Users */}
+        {(userRole === 'admin') && (
+          <Link href="/admin-portal/application-users" className="w-full">
             <Button variant="outline" className="w-full">
-              <Users className="mr-2 h-4 w-4" />
-              Manage Organization Users
-              {(userRole === 'verifier' || userRole === 'basic') && (
-                <span className="ml-2 text-xs text-muted-foreground">(View Only)</span>
-              )}
+              <Settings className="mr-2 h-4 w-4" />
+              Admin settings
             </Button>
           </Link>
-        )}
+        )}              
         
         {/* Logout button for all authenticated users */}
         <div className="flex justify-center items-center gap-2">
@@ -227,7 +223,7 @@ const Index = () => {
             className="w-full"
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Logout
+            Sign out
           </Button>
         </div>
       </div>
@@ -239,30 +235,14 @@ const Index = () => {
       <Header />
       <main className="flex-1 container py-12">
         <div className="flex flex-col items-center">
-          <div className="max-w-md w-full space-y-8">
+          <div className="max-w-md w-full space-y-8 flex flex-col items-center">
+            <img src="/logo.png" alt="Authenpush Logo" className="h-24 w-24" />
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">User Verification System</h2>
-              <p className="text-muted-foreground">
-                Secure user verification system
-              </p>
-              {user && (
-                <div className="space-y-2">
-                  <p className="text-sm text-blue-600">
-                    Welcome, {user.display_name || user.name || user.email}
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full capitalize">
-                      {user.role || 'user'}
-                    </span>
-                  </div>
-                  {user.organizations && (
-                    <OrganizationInfo 
-                      organization={user.organizations} 
-                      className="justify-center"
-                    />
-                  )}
+              <h2 className="text-3xl font-bold">Verify User Identities</h2>
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <Building2 size={16} />
+                    <span>Authenpush</span>
                 </div>
-              )}
             </div>
             
             {/* Show role-based options for authenticated users */}

@@ -395,110 +395,100 @@ const ResetApprovalForm = () => {
   };
 
   // Process initial MFA response and return whether polling is needed
-const processInitialResponse = (data: any, email : string) => {
-  // Check if request was cancelled
-    if (abortControllerRef.current?.signal.aborted) {
-      return false;
-    }
+  const processInitialResponse = (data: any, email : string) => {
+    // Check if request was cancelled
+      if (abortControllerRef.current?.signal.aborted) {
+        return false;
+      }
 
-  // Check for immediate errors in the response
-    if (data.result && !data.result.received) {
-      updateRequestState({
-        status: "error",
-        message: "Failed to send MFA notification: " + (data.result.message || "Unknown error")
-      });
-      return false;
-    }
-    
-  // Check for user not found error specifically
-    if (data.result && data.result.message && data.result.message.includes("user not found")) {
-      updateRequestState({
-        status: "user_not_found",
-        message: `User "${email}" not found in your organization.`,
-        contextId: data.contextId
-      });
-      return false;
-    }
+    // Check for immediate errors in the response
+      if (data.result && !data.result.received) {
+        updateRequestState({
+          status: "error",
+          message: "Failed to send MFA notification: " + (data.result.message || "Unknown error")
+        });
+        return false;
+      }
+      
+    // Check for user not found error specifically
+      if (data.result && data.result.message && data.result.message.includes("user not found")) {
+        updateRequestState({
+          status: "user_not_found",
+          message: `User "${email}" not found in your organization.`,
+          contextId: data.contextId
+        });
+        return false;
+      }
 
-  // NEW: Check for "No default authentication method" error
-    if (data.result && data.result.message && 
-        (data.result.message.includes("No default authentication method") || 
-         data.result.message.includes("authentication method is set"))) {
-      updateRequestState({
-        status: "mfa_not_configured",
-        message: `User "${email}" exists but does not have MFA configured. Please set up multi-factor authentication for this user first.`,
-        contextId: data.contextId
-      });
-      return false;
-    }
+    // NEW: Check for "No default authentication method" error
+      if (data.result && data.result.message && 
+          (data.result.message.includes("No default authentication method") || 
+          data.result.message.includes("authentication method is set"))) {
+        updateRequestState({
+          status: "mfa_not_configured",
+          message: `User "${email}" exists but does not have MFA configured. Please set up multi-factor authentication for this user first.`,
+          contextId: data.contextId
+        });
+        return false;
+      }
 
-    if (data.result && data.result.received && 
-        !data.result.approved && !data.result.denied && !data.result.timeout &&
-        data.result.message && data.result.message.trim() !== "") {
-      updateRequestState({
-        status: "mfa_not_configured", 
-        message: `MFA configuration issue: ${data.result.message}`,
-        contextId: data.contextId
-      });
-      return false;
-    }
+      if (data.result && data.result.received && 
+          !data.result.approved && !data.result.denied && !data.result.timeout &&
+          data.result.message && data.result.message.trim() !== "") {
+        updateRequestState({
+          status: "mfa_not_configured", 
+          message: `MFA configuration issue: ${data.result.message}`,
+          contextId: data.contextId
+        });
+        return false;
+      }
 
-    if (data.result && data.result.received && data.result.message && 
-        (data.result.message.includes("SMS MFA configured") || 
-        data.result.message.includes("push notifications are not available"))) {
-      updateRequestState({
-        status: "mfa_not_configured",
-        message: `User "${email}" has SMS-based MFA configured. Push notifications are only available for users with Microsoft Authenticator app or similar push-capable MFA methods.`,
-        contextId: data.contextId
-      });
-      return false;
-    }
-    
-    if (data.result && data.result.message && 
-        (data.result.message.includes("does not have access permissions") || 
-         data.result.message.includes("tenant"))) {
-      updateRequestState({
-        status: "error",
-        message: data.result.message,
-        contextId: data.contextId
-      });
-      return false;
-    }
-    
-    if (data.result && data.result.approved) {
-      updateRequestState({
-        status: "approved",
-        message: "User has approved the request. You can proceed with account changes.",
-        contextId: data.contextId
-      });
-      return false;
-    }
-    
-    if (data.result && data.result.denied) {
-      updateRequestState({
-        status: "denied",
-        message: "User has denied the request. No changes will be made.",
-        contextId: data.contextId
-      });
-      return false;
-    }
-    
-    if (data.result && data.result.timeout) {
-      updateRequestState({
-        status: "timeout",
-        message: "Request timed out. The user did not respond within the time limit.",
-        contextId: data.contextId
-      });
-      return false;
-    }
+      
+      if (data.result && data.result.message && 
+          (data.result.message.includes("does not have access permissions") || 
+          data.result.message.includes("tenant"))) {
+        updateRequestState({
+          status: "error",
+          message: data.result.message,
+          contextId: data.contextId
+        });
+        return false;
+      }
+      
+      if (data.result && data.result.approved) {
+        updateRequestState({
+          status: "approved",
+          message: "User has approved the request. You can proceed with account changes.",
+          contextId: data.contextId
+        });
+        return false;
+      }
+      
+      if (data.result && data.result.denied) {
+        updateRequestState({
+          status: "denied",
+          message: "User has denied the request. No changes will be made.",
+          contextId: data.contextId
+        });
+        return false;
+      }
+      
+      if (data.result && data.result.timeout) {
+        updateRequestState({
+          status: "timeout",
+          message: "Request timed out. The user did not respond within the time limit.",
+          contextId: data.contextId
+        });
+        return false;
+      }
 
-    updateRequestState({
-      status: "loading",
-      message: "Approval request sent. Waiting for user response...",
-      contextId: data.contextId
-    });
-    
-    return true;
+      updateRequestState({
+        status: "loading",
+        message: "Approval request sent. Waiting for user response...",
+        contextId: data.contextId
+      });
+      
+      return true;
   };
 
   const handleResetForm = () => {
@@ -751,9 +741,9 @@ const processInitialResponse = (data: any, email : string) => {
               {showDropdown && (
                 <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded-md border bg-white shadow-lg">
                   {searchResults.length > 0 ? (
-                    searchResults.map((user) => (
+                    searchResults.map((user, index) => (
                       <div
-                        key={user.id}
+                        key={`${user.id}-${user.userPrincipalName}-${index}`}
                         className="cursor-pointer px-3 py-2 hover:bg-blue-100 transition-colors"
                         onClick={() => handleUserClick(user)}
                       >

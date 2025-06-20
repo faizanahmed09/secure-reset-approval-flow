@@ -23,12 +23,12 @@ const Loader: React.FC<LoaderProps> = ({
         </div>
         
         {/* Decorative dots */}
-        <div className="absolute -inset-4">
+        {/* <div className="absolute -inset-4">
           <div className="w-2 h-2 bg-blue-400 rounded-full absolute top-0 left-1/2 transform -translate-x-1/2 animate-bounce"></div>
           <div className="w-2 h-2 bg-blue-400 rounded-full absolute bottom-0 left-1/2 transform -translate-x-1/2 animate-bounce" style={{animationDelay: '0.5s'}}></div>
           <div className="w-2 h-2 bg-blue-400 rounded-full absolute left-0 top-1/2 transform -translate-y-1/2 animate-bounce" style={{animationDelay: '1s'}}></div>
           <div className="w-2 h-2 bg-blue-400 rounded-full absolute right-0 top-1/2 transform -translate-y-1/2 animate-bounce" style={{animationDelay: '1.5s'}}></div>
-        </div>
+        </div> */}
       </div>
       
       {/* Text content centered below the loader */}

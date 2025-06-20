@@ -98,11 +98,11 @@ export default function OrganizationSetup() {
     }
   };
 
-  const handleSkip = () => {
-    // Mark organization setup as completed (even if skipped)
-    markOrganizationSetupCompleted();
-    router.push("/admin-portal");
-  };
+  // const handleSkip = () => {
+  //   // Mark organization setup as completed (even if skipped)
+  //   markOrganizationSetupCompleted();
+  //   router.push("/admin-portal");
+  // };
 
   if (isLoading) {
     return (
@@ -165,13 +165,13 @@ export default function OrganizationSetup() {
             >
               {isSaving ? "Saving..." : "Save & Continue"}
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               onClick={handleSkip}
               disabled={isSaving}
             >
               Skip
-            </Button>
+            </Button> */}
           </div>
         </CardContent>
       </Card>

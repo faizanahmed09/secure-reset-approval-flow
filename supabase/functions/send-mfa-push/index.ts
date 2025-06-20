@@ -32,7 +32,6 @@ serve(async (req) => {
       );
     }
 
-    // Get the client secret from the database
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
@@ -60,45 +59,12 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    // More specific error messaging for missing secret
-    if (secretError) {
-      if (secretError.code === 'PGRST116') {
-        // This is the "no rows returned" error code from PostgREST
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "No MFA secret found for this tenant. Please generate one first by visiting the configuration page.",
-            error_code: "NO_MFA_SECRET"
-          }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      } else {
-        // Other database errors
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "Database error when retrieving MFA secret.",
-            error_code: "DB_ERROR",
-            details: secretError.message
-          }),
-          {
-            status: 500, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-    }
-
-    // Also handle where no error but data is empty
-    if (!secretData || !secretData.secret_value) {
+    if (secretError || !secretData?.secret_value) {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "No valid MFA secret value found. Please generate a new secret.",
-          error_code: "EMPTY_SECRET"
+          message: "No MFA secret found for this tenant. Please generate one first.",
+          error_code: "NO_MFA_SECRET"
         }),
         {
           status: 404,
@@ -107,35 +73,103 @@ serve(async (req) => {
       );
     }
 
-    const encryted_clientSecret = secretData.secret_value;
-
-    const tenantId = userDetails.tenantId
+    const encryptedClientSecret = secretData.secret_value;
+    const tenantId = userDetails.tenantId;
     const clientId = Deno.env.get("MFA_CLIENT_ID") || "";
     
     try {
-
       // Get the encryption key from environment variable
       const encryptionKey = Deno.env.get("MFA_SECRET_ENCRYPTION_KEY") || tenantId;
+      const clientSecret = await decryptData(encryptedClientSecret, encryptionKey);
 
-      // Decrypt the secret
-      const clientSecret = await decryptData(encryted_clientSecret, encryptionKey);
+      // NEW: Handle user preference switching
+      let originalPreference = null;
+      let userId = null;
+      let userHasAuthenticator = false;
 
-      // Step 1: Get MFA service token
+      try {
+        // Step 1: Get user ID from email
+        userId = await getUserIdFromEmail(email, accessToken);
+        
+        if (!userId) {
+          throw new Error("User not found in Azure AD");
+        }
+
+        // Step 2: Check if user has Microsoft Authenticator
+        const userMethods = await getUserAuthenticationMethods(userId, accessToken);
+        userHasAuthenticator = checkIfUserHasAuthenticator(userMethods);
+
+        if (!userHasAuthenticator) {
+          const completed_at = new Date().toISOString();
+          await storeMfaRequest(email, userDetails, crypto.randomUUID(), {
+            received: false,
+            approved: false,
+            denied: false,
+            timeout: false,
+            mfa_not_configured: true,
+            message: "User does not have Microsoft Authenticator configured"
+          }, completed_at);
+
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: "User does not have Microsoft Authenticator configured for push notifications",
+              result: {
+                received: false,
+                approved: false,
+                denied: false,
+                timeout: false,
+                mfa_not_configured: true,
+                message: "User does not have Microsoft Authenticator configured"
+              }
+            }),
+            {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+
+        // Step 3: Get and store original preference
+        originalPreference = await getUserSignInPreferences(userId, accessToken);
+        
+        // Step 4: Temporarily set preference to push if not already
+        if (originalPreference.userPreferredMethodForSecondaryAuthentication !== "push") {
+          await updateUserSignInPreference(userId, "push", accessToken);
+          console.log("Temporarily updated user preference to push notifications");
+        }
+
+      } catch (preferenceError) {
+        console.error("Error managing user preferences:", preferenceError);
+        // Continue with MFA attempt anyway, might still work
+      }
+
+      // Step 5: Get MFA service token and send notification
       const mfaServiceToken = await getMfaServiceToken(tenantId, clientId, clientSecret);
-
-      // Step 2: Create a unique context ID
       const contextId = crypto.randomUUID();
-
-      // Step 3: Send the MFA notification
       const result = await sendMfaNotification(email, mfaServiceToken, contextId);
-      // // Step 4: Parse the XML response
       const mfaOutcome = parseMfaResponse(result);
 
-      // // Step 5: Store MFA request details in Supabase
+      // Step 6: Restore original preference if we changed it
+      if (originalPreference && 
+          originalPreference.userPreferredMethodForSecondaryAuthentication !== "push" && 
+          userId && userHasAuthenticator) {
+        try {
+          await updateUserSignInPreference(
+            userId, 
+            originalPreference.userPreferredMethodForSecondaryAuthentication, 
+            accessToken
+          );
+          console.log("Restored original user preference:", originalPreference.userPreferredMethodForSecondaryAuthentication);
+        } catch (restoreError) {
+          console.error("Failed to restore original preference:", restoreError);
+          // Don't fail the whole request for this
+        }
+      }
+
+      // Step 7: Store MFA request details
       const completed_at = new Date().toISOString();
       await storeMfaRequest(email, userDetails, contextId, mfaOutcome, completed_at);
 
-      // Return success response with MFA outcome
       return new Response(
         JSON.stringify({
           success: true,
@@ -152,10 +186,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unknown error during MFA process",
+          error: error instanceof Error ? error.message : "Unknown error during MFA process",
         }),
         {
           status: 500,
@@ -177,6 +208,96 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to get user ID from email
+async function getUserIdFromEmail(email, accessToken) {
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}?$select=id`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get user ID: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.id;
+}
+
+// Helper function to get user's authentication methods
+async function getUserAuthenticationMethods(userId, accessToken) {
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${userId}/authentication/methods`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to get authentication methods: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.value || [];
+}
+
+// Helper function to check if user has Microsoft Authenticator
+function checkIfUserHasAuthenticator(methods) {
+  return methods.some(method => 
+    method['@odata.type'] === '#microsoft.graph.microsoftAuthenticatorAuthenticationMethod'
+  );
+}
+
+// Helper function to get current sign-in preferences
+async function getUserSignInPreferences(userId, accessToken) {
+  const response = await fetch(
+    `https://graph.microsoft.com/beta/users/${userId}/authentication/signInPreferences`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (response.ok) {
+    return await response.json();
+  } else {
+    // Return default if not available
+    return {
+      userPreferredMethodForSecondaryAuthentication: "sms",
+      isSystemPreferredAuthenticationMethodEnabled: false
+    };
+  }
+}
+
+// Helper function to update user's sign-in preference
+async function updateUserSignInPreference(userId, preferredMethod, accessToken) {
+  const response = await fetch(
+    `https://graph.microsoft.com/beta/users/${userId}/authentication/signInPreferences`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userPreferredMethodForSecondaryAuthentication: preferredMethod
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to update sign-in preference: ${response.status} ${response.statusText}`);
+  }
+}
+
+// [Keep all your existing functions: getMfaServiceToken, sendMfaNotification, parseMfaResponse, storeMfaRequest, decryptData]
 
 // Function to get a token for the MFA service
 async function getMfaServiceToken(

@@ -185,8 +185,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [fetchUser]);
 
   const refreshUser = useCallback(async () => {
-    await fetchUser();
-  }, [fetchUser]);
+    setIsLoading(true);
+    try {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      const idToken = window.sessionStorage.getItem('idToken');
+      const accessToken = window.sessionStorage.getItem('accessToken');
+      if (idToken) {
+        // This function will fetch from the DB and update session storage
+        const refreshedUser = await processUserFromToken(idToken, accessToken || undefined);
+        setUser(refreshedUser);
+      } else {
+        // If no token, clear user
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+      // Optionally, handle the error, e.g., by logging out the user
+    } finally {
+      setIsLoading(false);
+    }
+  }, [processUserFromToken]);
 
   const markOrganizationSetupCompleted = useCallback(() => {
     if (typeof window !== 'undefined') {
