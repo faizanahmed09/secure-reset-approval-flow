@@ -183,7 +183,7 @@ const Index = () => {
           <Link href="/admin-portal/reset-approval" className="w-full">
             <Button className="w-full bg-blue-600 hover:bg-blue-700">
               <Send className="mr-2 h-4 w-4" />
-              Verify user
+              Verify User
             </Button>
           </Link>
         )}
@@ -192,7 +192,7 @@ const Index = () => {
         <Link href="/admin-portal/users" className="w-full">
           <Button variant="outline" className="w-full">
             <Users className="mr-2 h-4 w-4" />
-            All users
+            All Users
           </Button>
         </Link>
         
@@ -200,7 +200,7 @@ const Index = () => {
         <Link href="/admin-portal/change-requests-log" className="w-full">
           <Button variant="outline" className="w-full flex items-center">
             <FileText className="mr-2 h-4 w-4" />
-            Verification log
+            Verification Log
           </Button>
         </Link>
         
@@ -209,7 +209,7 @@ const Index = () => {
           <Link href="/admin-portal/application-users" className="w-full">
             <Button variant="outline" className="w-full">
               <Settings className="mr-2 h-4 w-4" />
-              Admin settings
+              Admin Settings
             </Button>
           </Link>
         )}              
@@ -223,7 +223,7 @@ const Index = () => {
             className="w-full"
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Sign out
+            Sign Out
           </Button>
         </div>
       </div>
@@ -241,7 +241,7 @@ const Index = () => {
               <h2 className="text-3xl font-bold">Verify User Identities</h2>
                 <div className="flex items-center justify-center gap-2 text-muted-foreground">
                     <Building2 size={16} />
-                    <span>Authenpush</span>
+                    <span>{user?.organizations?.display_name}</span>
                 </div>
             </div>
             

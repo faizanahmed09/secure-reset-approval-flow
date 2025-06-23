@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { IPublicClientApplication } from '@azure/msal-browser'
 import { jwtDecode } from 'jwt-decode'
 import { loginRequest } from '@/userAuthConfig'
+import { tokenInterceptor } from '@/utils/tokenInterceptor'
+import { useToast } from '@/hooks/use-toast'
 
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co"
 
@@ -85,6 +87,7 @@ const checkNeedsOrganizationSetup = (user: User | null): boolean => {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
   // Calculate if user needs organization setup
   const needsOrganizationSetup = checkNeedsOrganizationSetup(user);
@@ -118,7 +121,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }
 
-      // Call the edge function to handle user creation/verification (removed organizationDetails)
+      // Call the edge function to handle user creation/verification
       const apiResponse = await fetch(
         `${SUPABASE_URL}/functions/v1/manage-user`,
         {
@@ -183,6 +186,62 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  // Add token validation effect to periodically check for expired tokens
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    // Validate tokens immediately
+    const validateTokens = async () => {
+      try {
+        const isValid = await tokenInterceptor.validateAuthenticationState();
+        if (!isValid) {
+          console.log('Token validation failed, clearing user state');
+          
+          // Show session expired toast
+          toast({
+            title: 'Session Expired',
+            description: 'Your session has expired. Redirecting to login...',
+            variant: 'destructive',
+          });
+          
+          setUser(null);
+          
+          // Redirect to login after a short delay
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Error validating tokens:', error);
+        
+        // Show session expired toast for errors too
+        toast({
+          title: 'Session Expired',
+          description: 'Your session has expired. Redirecting to login...',
+          variant: 'destructive',
+        });
+        
+        setUser(null);
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+      }
+    };
+
+    validateTokens();
+
+    // Set up periodic token validation (every 5 minutes)
+    const validationInterval = setInterval(validateTokens, 5 * 60 * 1000);
+
+    return () => {
+      clearInterval(validationInterval);
+    };
+  }, [user]);
 
   const refreshUser = useCallback(async () => {
     setIsLoading(true);

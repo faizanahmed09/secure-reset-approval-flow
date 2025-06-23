@@ -509,7 +509,7 @@ const UsersComponent = () => {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Users className="h-6 w-6 text-blue-600" />
-              <span>Azure AD Users</span>
+              <span>Entra ID Users</span>
             </div>
             <div className="flex items-center space-x-2">
               <Badge variant="outline" className="text-xs">
@@ -528,7 +528,7 @@ const UsersComponent = () => {
             </div>
           </CardTitle>
           <CardDescription>
-            Search and manage users from your Azure Active Directory
+            Search for your user in Entra ID
           </CardDescription>
         </CardHeader>
         <CardContent>

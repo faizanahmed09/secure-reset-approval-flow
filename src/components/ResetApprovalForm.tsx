@@ -30,6 +30,7 @@ import axios from "axios";
 import Loader from "@/components/common/Loader";
 import debounce from 'lodash/debounce';
 import { getAccessToken } from '@/services/userService';
+import { tokenInterceptor } from '@/utils/tokenInterceptor';
 
 interface AzureUser {
   id: string;
@@ -90,7 +91,7 @@ const ResetApprovalForm = () => {
   // Optimized field selection for search
   const selectFields = ['displayName', 'userPrincipalName'].join(',');
 
-  // Server-side search function
+  // Server-side search function with improved token handling
   const searchUsers = async (query: string): Promise<AzureUser[]> => {
     if (!query.trim() || query.length < 2) {
       return [];
@@ -105,7 +106,8 @@ const ResetApprovalForm = () => {
       // Create new AbortController for this search
       searchAbortControllerRef.current = new AbortController();
 
-      const accessToken = await getAccessToken(instance, accounts);
+      // Initialize token interceptor
+      tokenInterceptor.initialize(instance, accounts);
 
       // Build search filter - search in displayName, userPrincipalName, and mail
       const searchFilter = `startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}')`;
@@ -113,32 +115,36 @@ const ResetApprovalForm = () => {
       // Note: $orderby is not supported with complex $filter queries in Microsoft Graph
       const endpoint = `${graphConfig.graphUsersEndpoint}?$select=${selectFields}&$filter=${encodeURIComponent(searchFilter)}&$top=20`;
 
-      const response = await axios.get(endpoint, {
+      // Use tokenInterceptor's fetch method for automatic token handling
+      const response = await tokenInterceptor.graphApiFetch(endpoint, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
           'ConsistencyLevel': 'eventual',
         },
         signal: searchAbortControllerRef.current.signal,
       });
 
-      return response.data.value || [];
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.value || [];
     } catch (error: any) {
       // Don't handle error if request was cancelled
-      if (error.name === 'AbortError' || axios.isCancel(error)) {
+      if (error.name === 'AbortError') {
         return [];
       }
 
       console.error("Error searching users:", error);
       
+      // Let the tokenInterceptor handle authentication errors
+      tokenInterceptor.handleGraphApiError(error, 'searchUsers');
+      
       // Handle specific error cases
-      if (error.response?.status === 403) {
-        throw new Error("Insufficient permissions to search users");
-      } else if (error.response?.status === 401) {
-        // Clear stored token if it's invalid
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.removeItem('accessToken');
-        }
+      if (error.message?.includes('AUTHENTICATION')) {
         throw new Error("Authentication required - please refresh the page");
+      } else if (error.message?.includes('permissions')) {
+        throw new Error("Insufficient permissions to search users");
       } else {
         throw new Error("Failed to search users");
       }
@@ -275,7 +281,9 @@ const ResetApprovalForm = () => {
         message: "Authenticating with Microsoft Entra ID..."
       });
 
-      const accessToken = await getAccessToken(instance, accounts);
+      // Initialize token interceptor and get access token
+      tokenInterceptor.initialize(instance, accounts);
+      const accessToken = await tokenInterceptor.getValidAccessToken();
 
       // Check if request was cancelled
       if (abortControllerRef.current?.signal.aborted) {
@@ -304,13 +312,24 @@ const ResetApprovalForm = () => {
 
       // Send the push notification using the token and user details
       await sendPushNotificationToUser(email, userDetails, accessToken);
-    } catch (error) {
+    } catch (error: any) {
       // Don't show error if request was cancelled
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
 
       console.error("Error sending push notification:", error);
+      
+      // Handle authentication errors via token interceptor
+      tokenInterceptor.handleGraphApiError(error, 'resetApprovalRequest');
+      
+      // Check if it's an authentication error that will redirect
+      if (error.message === 'AUTHENTICATION_REQUIRED' || 
+          error.message === 'AUTHENTICATION_FAILED') {
+        // Don't show additional error message as redirect will happen
+        return;
+      }
+      
       updateRequestState({
         status: "error",
         message: "Failed to send push notification. Please try again."

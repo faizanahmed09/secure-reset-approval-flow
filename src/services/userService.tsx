@@ -1,63 +1,32 @@
 import { jwtDecode } from "jwt-decode";
 import { IPublicClientApplication, AuthenticationResult } from "@azure/msal-browser";
-import { loginRequest } from '../userAuthConfig';
+import { tokenInterceptor } from '@/utils/tokenInterceptor';
 
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
 
 /**
- * Centralized function to get access token with fallback mechanisms
- * First tries session storage, then falls back to MSAL silent token acquisition
+ * Centralized function to get access token using the token interceptor
+ * This will automatically handle token refresh and expiration
  */
 export const getAccessToken = async (
   instance: IPublicClientApplication,
   accounts: any[]
 ): Promise<string> => {
-  // First try to get token from session storage
-  if (typeof window !== 'undefined') {
-    const storedToken = window.sessionStorage.getItem('accessToken');
-    if (storedToken) {
-      return storedToken;
-    }
+  try {
+    // Initialize the token interceptor with current MSAL instance and accounts
+    tokenInterceptor.initialize(instance, accounts);
+    
+    // Use the token interceptor to get a valid token
+    return await tokenInterceptor.getValidAccessToken();
+  } catch (error: any) {
+    console.error('Error getting access token:', error);
+    
+    // Handle the error through the token interceptor
+    tokenInterceptor.handleGraphApiError(error, 'getAccessToken');
+    
+    // Re-throw for component-level handling
+    throw error;
   }
-
-  // Fall back to MSAL if no stored token and accounts are available
-  if (accounts.length > 0) {
-    try {
-      // Ensure active account is set
-      if (!instance.getActiveAccount()) {
-        instance.setActiveAccount(accounts[0]);
-      }
-      
-      const tokenResponse = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
-      
-      // Store the new token for future use
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('accessToken', tokenResponse.accessToken);
-      }
-      
-      return tokenResponse.accessToken;
-    } catch (error: any) {
-      // If silent token acquisition fails, clear stored token and throw error
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem('accessToken');
-      }
-      
-      // Handle specific MSAL errors
-      if (error.name === "InteractionRequiredAuthError" || 
-          error.errorCode === "interaction_required" ||
-          error.errorCode === "consent_required" ||
-          error.errorCode === "login_required") {
-        throw new Error("INTERACTION_REQUIRED");
-      }
-      
-      throw error;
-    }
-  }
-
-  throw new Error("No authentication available - please refresh the page");
 };
 
 interface User {
@@ -82,7 +51,7 @@ interface AzureUser {
 }
 
 /**
- * Search Azure AD users with proper error handling
+ * Search Azure AD users with proper error handling using token interceptor
  */
 export const searchAzureUsers = async (
   instance: IPublicClientApplication,
@@ -94,32 +63,25 @@ export const searchAzureUsers = async (
       return [];
     }
 
-    // Use centralized token function
-    const accessToken = await getAccessToken(instance, accounts);
+    // Initialize the token interceptor
+    tokenInterceptor.initialize(instance, accounts);
 
     const selectFields = ['id', 'displayName', 'userPrincipalName'].join(',');
     const searchFilter = `startswith(displayName,'${searchQuery}') or startswith(userPrincipalName,'${searchQuery}')`;
     
     const endpoint = `https://graph.microsoft.com/v1.0/users?$select=${selectFields}&$filter=${encodeURIComponent(searchFilter)}&$top=50`;
 
-    const response = await fetch(endpoint, {
+    // Use token interceptor's fetch method for automatic token handling
+    const response = await tokenInterceptor.graphApiFetch(endpoint, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
         'ConsistencyLevel': 'eventual',
-        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       
-      if (response.status === 401) {
-        // Token might be expired, clear it from session storage and throw interaction required
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.removeItem('accessToken');
-        }
-        throw new Error('INTERACTION_REQUIRED');
-      } else if (response.status === 403) {
+      if (response.status === 403) {
         throw new Error('Insufficient permissions to search users. Please contact your administrator.');
       } else {
         throw new Error(`Failed to search Azure users: ${errorData.error?.message || response.statusText}`);
@@ -128,8 +90,12 @@ export const searchAzureUsers = async (
 
     const data = await response.json();
     return data.value || [];
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error searching Azure users:', error);
+    
+    // Handle the error through the token interceptor
+    tokenInterceptor.handleGraphApiError(error, 'searchAzureUsers');
+    
     throw error;
   }
 };

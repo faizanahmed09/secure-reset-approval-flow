@@ -16,6 +16,8 @@ import { fetchOrganizationUsers, updateUser, searchAzureUsers, createDatabaseUse
 import { organizationService } from '@/services/organizationService';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/userAuthConfig';
+import { useTokenValidation } from '@/hooks/useTokenValidation';
+import { tokenInterceptor } from '@/utils/tokenInterceptor';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -59,6 +61,7 @@ const ApplicationUsers = () => {
   const { user, isAuthenticated, isLoading, refreshUser } = useAuth();
   const { instance, accounts } = useMsal();
   const { toast } = useToast();
+  const { isTokenValid, validateTokens, isValidating } = useTokenValidation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<EditingUser | null>(null);
@@ -240,11 +243,27 @@ const ApplicationUsers = () => {
       setSearchLoading(true);
       setAuthError(false);
       
+      // Validate tokens before making the search
+      const tokensValid = await validateTokens();
+      if (!tokensValid) {
+        setAuthError(true);
+        toast({
+          title: 'Authentication Required',
+          description: 'Your session has expired. Please refresh the page.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       const results = await searchAzureUsers(instance, accounts, query);
       setAzureUsers(results);
     } catch (error: any) {
       console.error('Error searching Azure users:', error);
       
+      // Let the tokenInterceptor handle authentication errors globally
+      tokenInterceptor.handleGraphApiError(error, 'searchAzureUsers');
+      
+      // Check for specific error types that we should handle locally
       if (error.message === 'INTERACTION_REQUIRED') {
         setAuthError(true);
         toast({
@@ -252,18 +271,11 @@ const ApplicationUsers = () => {
           description: 'Your session has expired. Please re-authenticate to search users.',
           variant: 'destructive',
         });
-      } else if (error.message?.includes('No authentication available') || error.message?.includes('token')) {
-        // Token completely expired, redirect to index page
-        toast({
-          title: 'Session Expired',
-          description: 'Your session has expired. Redirecting to login...',
-          variant: 'destructive',
-        });
-        
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 2000);
+      } else if (error.message?.includes('AUTHENTICATION')) {
+        // Authentication errors will be handled by tokenInterceptor (redirect)
+        setAuthError(true);
       } else {
+        // Other errors (permissions, network, etc.)
         toast({
           title: 'Error',
           description: error.message || 'Failed to search Azure users',

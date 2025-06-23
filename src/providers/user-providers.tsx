@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import Loader from "@/components/common/Loader";
+import { tokenInterceptor } from '@/utils/tokenInterceptor';
 
 const queryClient = new QueryClient()
 // Initialize the MSAL application object
@@ -115,6 +116,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           msalInstance.setActiveAccount(accounts[0]);
           console.log('✅ Active account set from existing accounts:', accounts[0].username);
         }
+        
+        // Initialize token interceptor with MSAL instance and accounts
+        tokenInterceptor.initialize(msalInstance, accounts);
         
         if (isMounted) {
           setIsInitialized(true);
