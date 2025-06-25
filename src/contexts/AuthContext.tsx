@@ -130,7 +130,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userInfo
+            userInfo: {
+              ...userInfo,
+              accessToken: accessToken // Pass the access token for MFA secret generation
+            }
           }),
         }
       );

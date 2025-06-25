@@ -12,11 +12,11 @@ serve(async (req)=>{
     });
   }
   try {
-    const { tenantId, clientId } = await req.json();
-    if (!tenantId || !clientId) {
+    const { organizationId } = await req.json();
+    if (!organizationId) {
       return new Response(JSON.stringify({
         success: false,
-        message: "Missing required parameter: tenantId or clientId"
+        message: "Missing required parameter: organizationId"
       }), {
         status: 400,
         headers: {
@@ -40,12 +40,11 @@ serve(async (req)=>{
       });
     }
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    // Get the most recent active secret for this tenant
+    // Get the most recent active secret for this organization
     const { data, error } = await supabase
       .from("mfa_secrets")
       .select("*")
-      .eq("client_id", clientId)
-      .eq("tenant_id", tenantId)
+      .eq("organization_id", organizationId)
       .order("created_at", {
         ascending: false
       })
@@ -68,7 +67,7 @@ serve(async (req)=>{
       return new Response(JSON.stringify({
         success: true,
         exists: false,
-        message: "No valid MFA secret found for this tenant"
+        message: "No valid MFA secret found for this organization"
       }), {
         headers: {
           ...corsHeaders,
@@ -82,10 +81,12 @@ serve(async (req)=>{
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const isExpiringSoon = expiresAt < thirtyDaysFromNow;
+    
     return new Response(JSON.stringify({
       success: true,
       exists: true,
       isExpiringSoon,
+      expiresAt: expiresAt.toISOString(),
       message: isExpiringSoon ? "MFA secret exists but will expire soon" : "Valid MFA secret found"
     }), {
       headers: {

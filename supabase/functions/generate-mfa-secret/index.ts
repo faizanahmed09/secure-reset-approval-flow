@@ -15,12 +15,12 @@ serve(async (req: { method: string; json: () => any; })=>{
   }
   try {
     const body = await req.json();
-    const { tenantId, clientId, accessToken, userDetails } = body;
+    const { tenantId, clientId, accessToken, userDetails, organizationId } = body;
     // Validate incoming data
-    if (!tenantId || !clientId || !accessToken || !userDetails) {
+    if (!tenantId || !clientId || !accessToken || !userDetails || !organizationId) {
       return new Response(JSON.stringify({
         success: false,
-        message: "Missing required parameters: tenantId, accessToken, or userDetails"
+        message: "Missing required parameters: tenantId, clientId, accessToken, userDetails, or organizationId"
       }), {
         status: 400,
         headers: {
@@ -33,7 +33,7 @@ serve(async (req: { method: string; json: () => any; })=>{
       // Create the client secret
       const secretResult = await createMfaClientSecret(accessToken, tenantId);
       // Store the secret in Supabase
-      await storeMfaSecret(tenantId, clientId, secretResult, userDetails.email || "unknown", accessToken);
+      await storeMfaSecret(tenantId, clientId, secretResult, userDetails.email || "unknown", accessToken, organizationId);
       // Return success response
       return new Response(JSON.stringify({
         success: true,
@@ -127,7 +127,7 @@ async function createMfaClientSecret(accessToken: any, tenantId: any) {
 }
 
 // Function to store MFA secret in Supabase
-async function storeMfaSecret(tenantId: any, clientId: any, secretData: { secretValue: any; keyId: any; displayName: any; expiresAt: any; startDateTime?: any; servicePrincipalId: any; }, createdBy: any, accessToken: any) {
+async function storeMfaSecret(tenantId: any, clientId: any, secretData: { secretValue: any; keyId: any; displayName: any; expiresAt: any; startDateTime?: any; servicePrincipalId: any; }, createdBy: any, accessToken: any, organizationId: any) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const encryptionKey = Deno.env.get("MFA_SECRET_ENCRYPTION_KEY") || tenantId;
@@ -140,13 +140,12 @@ async function storeMfaSecret(tenantId: any, clientId: any, secretData: { secret
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Step 1: Get existing secret for this client_id and tenant_id 
+    // Step 1: Get existing secret for this organization
     const { data: existingSecret, error: fetchError } = await supabase
       .from("mfa_secrets")
       .select("id, key_id, sp_id")
-      .eq("client_id", clientId)
-      .eq("tenant_id", tenantId)
-      .single(); // Use single() since there should be only one
+      .eq("organization_id", organizationId)
+      .single(); // Use single() since there should be only one per organization
     
     if (fetchError && fetchError.code !== 'PGRST116') {
       console.error("Error fetching existing secret:", fetchError);
@@ -177,6 +176,7 @@ async function storeMfaSecret(tenantId: any, clientId: any, secretData: { secret
       .insert({
         tenant_id: tenantId,
         client_id: clientId,
+        organization_id: organizationId,
         secret_value: encryptedSecretValue,
         key_id: secretData.keyId,
         display_name: secretData.displayName,
