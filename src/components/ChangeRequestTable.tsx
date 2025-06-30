@@ -264,7 +264,7 @@ const ChangeRequestTable = ({
                 </div>
                 
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Completed At</h3>
                   <p className="text-sm">{formatDate(selectedRequest.created_at)}</p>
                 </div>
                 

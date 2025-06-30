@@ -15,17 +15,17 @@ export const getAccessToken = async (
   try {
     // Initialize the token interceptor with current MSAL instance and accounts
     tokenInterceptor.initialize(instance, accounts);
-    
+      
     // Use the token interceptor to get a valid token
     return await tokenInterceptor.getValidAccessToken();
-  } catch (error: any) {
+    } catch (error: any) {
     console.error('Error getting access token:', error);
     
     // Handle the error through the token interceptor
     tokenInterceptor.handleGraphApiError(error, 'getAccessToken');
     
     // Re-throw for component-level handling
-    throw error;
+      throw error;
   }
 };
 
