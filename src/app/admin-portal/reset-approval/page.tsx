@@ -2,6 +2,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ResetApprovalForm from '@/components/ResetApprovalForm';
+import SubscriptionGuard from '@/components/SubscriptionGuard';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -28,28 +29,30 @@ const ResetApproval = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-      <main className="flex-1 container py-12">
-        <div className="flex flex-col items-center">
-          <div className="max-w-md w-full space-y-8">
-              <ResetApprovalForm />
+    <SubscriptionGuard feature="MFA reset approval">
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 container py-12">
+          <div className="flex flex-col items-center">
+            <div className="max-w-md w-full space-y-8">
+                <ResetApprovalForm />
+            </div>
           </div>
-        </div>
-        {/* button to show to top left corner of page */}
-        <div className="fixed top-20 left-4 z-10">
-          <Button
-            variant="outline"
-            className="mb-4"
-            onClick={() => router.push("/admin-portal")}
-            >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Button>
-        </div> 
-      </main>
-      <Footer />
-    </div>
+          {/* button to show to top left corner of page */}
+          <div className="fixed top-20 left-4 z-10">
+            <Button
+              variant="outline"
+              className="mb-4"
+              onClick={() => router.push("/admin-portal")}
+              >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Button>
+          </div> 
+        </main>
+        <Footer />
+      </div>
+    </SubscriptionGuard>
   );
 };
 
