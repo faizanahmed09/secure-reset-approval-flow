@@ -20,6 +20,89 @@ function createOrganizationName(domain: string): string {
   return baseName.charAt(0).toUpperCase() + baseName.slice(1);
 }
 
+// Helper function to check and manage MFA secret for organization
+async function checkAndManageMfaSecret(tenantId: string, clientId: string, accessToken: string, userEmail: string, organizationId: string, isNewOrganization: boolean) {
+  try {
+    if (isNewOrganization) {
+      console.log("Generating MFA secret for new organization:", organizationId);
+      return await generateMfaSecret(tenantId, clientId, accessToken, userEmail, organizationId, "new organization");
+    }
+    
+    // For existing organizations, check if MFA secret exists and is valid
+    console.log("Checking MFA secret status for existing organization:", organizationId);
+    
+    const checkResponse = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/check-mfa-secret`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          organizationId: organizationId,
+        }),
+      }
+    );
+    
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json();
+      
+      // If no valid secret exists or it's expiring soon, generate a new one
+      if (!checkData.exists || checkData.isExpiringSoon) {
+        const reason = !checkData.exists ? "missing" : "expiring soon";
+        console.log(`MFA secret ${reason} for organization ${organizationId}, generating new secret`);
+        return await generateMfaSecret(tenantId, clientId, accessToken, userEmail, organizationId, reason);
+      } else {
+        console.log("Valid MFA secret already exists for organization:", organizationId);
+        return { generated: false, reason: "already_exists" };
+      }
+    } else {
+      console.error("Failed to check MFA secret status");
+      return { generated: false, error: "check_failed" };
+    }
+  } catch (error) {
+    console.error("Error in checkAndManageMfaSecret:", error);
+    return { generated: false, error: error.message };
+  }
+}
+
+// Helper function to generate MFA secret
+async function generateMfaSecret(tenantId: string, clientId: string, accessToken: string, userEmail: string, organizationId: string, reason: string) {
+  try {
+    const generateResponse = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-mfa-secret`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tenantId: tenantId,
+          clientId: clientId,
+          accessToken: accessToken,
+          organizationId: organizationId,
+          userDetails: {
+            email: userEmail
+          }
+        }),
+      }
+    );
+    
+    if (generateResponse.ok) {
+      const generateData = await generateResponse.json();
+      console.log(`MFA secret generated successfully for ${reason}:`, generateData.secretId);
+      return { generated: true, secretId: generateData.secretId, reason };
+    } else {
+      const error = await generateResponse.json();
+      console.error(`Failed to generate MFA secret for ${reason}:`, error);
+      return { generated: false, error: error.message };
+    }
+  } catch (error) {
+    console.error(`Error generating MFA secret for ${reason}:`, error);
+    return { generated: false, error: error.message };
+  }
+}
+
 // Helper function to create or get organization based on email domain
 async function createOrGetOrganization(
   supabase: any,
@@ -254,6 +337,25 @@ serve(async (req) => {
         );
       }
 
+      // Check and manage MFA secret for existing admin users
+      if (userInfo.accessToken && existingUser.role === "admin") {
+        console.log("Checking MFA secret for existing admin user:", userInfo.email);
+        const mfaResult = await checkAndManageMfaSecret(
+          userInfo.tenantId,
+          userInfo.clientId,
+          userInfo.accessToken,
+          userInfo.email,
+          organization.id,
+          false // not a new organization
+        );
+        
+        if (mfaResult.generated) {
+          console.log(`MFA secret generated for existing admin (${mfaResult.reason})`);
+        } else if (mfaResult.error) {
+          console.warn("MFA secret management failed for existing admin:", mfaResult.error);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -312,6 +414,25 @@ serve(async (req) => {
           },
         }
       );
+    }
+
+    // Check and manage MFA secret for admin users (new organization or existing)
+    if (userInfo.accessToken && userRole === "admin") {
+      console.log("Checking MFA secret for admin user:", userInfo.email);
+      const mfaResult = await checkAndManageMfaSecret(
+        userInfo.tenantId,
+        userInfo.clientId,
+        userInfo.accessToken,
+        userInfo.email,
+        organization.id,
+        !hasAdmin // true if this is a new organization (no existing admin)
+      );
+      
+      if (mfaResult.generated) {
+        console.log(`MFA secret generated for admin (${mfaResult.reason})`);
+      } else if (mfaResult.error) {
+        console.warn("MFA secret management failed for admin:", mfaResult.error);
+      }
     }
 
     return new Response(

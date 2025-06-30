@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link'
 import { FileText, LogOut, Loader2, Users, ArrowRight, Shield, Settings, Send, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { checkMfaSecret } from '../../services/mfaSecretService';
+
 import { useAuth } from '@/contexts/AuthContext';
-import { MfaConfigLoader, BeautifulLoader } from '@/app/loader';
+import { BeautifulLoader } from '@/app/loader';
 import { useRouter } from 'next/navigation';
 
 const Index = () => {
@@ -17,7 +17,7 @@ const Index = () => {
   const { user, isLoading, isAuthenticated, needsOrganizationSetup, handleLogout } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const [checkingMfa, setCheckingMfa] = useState(false);
+
   const [isInitializing, setIsInitializing] = useState(true);
   
   // Check if MFA has already been checked in this session
@@ -57,64 +57,21 @@ const Index = () => {
     }
   }, [isLoading, isAuthenticated, needsOrganizationSetup, router]);
 
-  // MFA check logic
+  // MFA is now handled during login, so we just mark it as checked
   useEffect(() => {
     const mfaAlreadyChecked = getMfaCheckedStatus();
     
+    // Since MFA secrets are now managed during login, we don't need to do anything here
+    // Just mark as checked to prevent loading states
     if (
-      accounts.length > 0 && 
-      inProgress === 'none' && 
-      !checkingMfa && 
       !mfaAlreadyChecked &&
       !isLoading && 
       isAuthenticated &&
-      !needsOrganizationSetup // Only run MFA check if not redirecting to organization setup
+      !needsOrganizationSetup
     ) {
-      const verifyMfaSecret = async () => {
-        setCheckingMfa(true);
-        try {
-          // Ensure active account is set for MSAL
-          if (!instance.getActiveAccount() && accounts.length > 0) {
-            instance.setActiveAccount(accounts[0]);
-          }
-          
-          // Get tokens silently
-          const tokenResponse = await instance.acquireTokenSilent({
-            scopes: ['https://graph.microsoft.com/Application.ReadWrite.All'],
-            account: accounts[0]
-          });
-
-          const secretResult = await checkMfaSecret(
-            tokenResponse.accessToken,
-            tokenResponse.idToken
-          );
-
-          // If a new secret was created, wait for propagation
-          if (secretResult.newlyCreated) {
-            // Wait for secret propagation
-            await new Promise(resolve => setTimeout(resolve, 4000));
-          }
-          
-          // Mark MFA as checked for this session
-          setMfaCheckedStatus(true);
-        } catch (error) {
-          console.error("Error checking MFA secret:", error);
-          toast({
-            title: "Warning",
-            description: "There was an issue configuring MFA. Some features may be limited.",
-            variant: "destructive",
-          });
-          
-          // Even on error, mark as checked to prevent repeated errors
-          setMfaCheckedStatus(true);
-        } finally {
-          setCheckingMfa(false);
-        }
-      };
-
-      verifyMfaSecret();
+      setMfaCheckedStatus(true);
     }
-  }, [accounts, inProgress, checkingMfa, instance, toast, isLoading, isAuthenticated, needsOrganizationSetup]);
+  }, [isLoading, isAuthenticated, needsOrganizationSetup]);
 
   const handleLogoutClick = async () => {
     try {
@@ -139,7 +96,7 @@ const Index = () => {
   };
 
   // Check the current status from sessionStorage for rendering decisions
-  const isMfaCheckComplete = !checkingMfa && getMfaCheckedStatus();
+  const isMfaCheckComplete = getMfaCheckedStatus();
 
   // Show initial loader while MSAL is initializing or content is not ready
   if (isInitializing || inProgress === 'startup' || inProgress === 'handleRedirect' || isLoading) {
@@ -170,10 +127,6 @@ const Index = () => {
 
   // Role-based button rendering
   const renderRoleBasedButtons = () => {
-    if (checkingMfa) {
-      return <MfaConfigLoader />;
-    }
-
     const userRole = user?.role;
     
     return (
