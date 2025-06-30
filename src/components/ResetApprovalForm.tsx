@@ -272,7 +272,7 @@ const ResetApprovalForm = () => {
     updateRequestState({ 
       email, 
       status: "loading", 
-      message: "Preparing to send approval request..."
+      message: "Preparing to send verification request..."
     });
 
     try {
@@ -503,7 +503,7 @@ const ResetApprovalForm = () => {
 
       updateRequestState({
         status: "loading",
-        message: "Approval request sent. Waiting for user response...",
+        message: "Verification request sent. Waiting for user response...",
         contextId: data.contextId
       });
       
@@ -608,7 +608,7 @@ const ResetApprovalForm = () => {
                 className="bg-green-600 hover:bg-green-700"
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Send Another Request
+                Send Another Verification
               </Button>
             </div>
           </div>
@@ -629,7 +629,7 @@ const ResetApprovalForm = () => {
               onClick={handleResetForm}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              Send Another Request
+              Send Another Verification
             </Button>
           </div>
         );
@@ -649,7 +649,7 @@ const ResetApprovalForm = () => {
               onClick={handleResetForm}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              Send Another Request
+              Send Another Verification
             </Button>
           </div>
         );
@@ -725,7 +725,7 @@ const ResetApprovalForm = () => {
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
-        <CardTitle className="text-center text-2xl">Change Request</CardTitle>
+        <CardTitle className="text-center text-2xl">Verify User</CardTitle>
         <CardDescription className="text-center text-gray-600">
           Search and select a user to trigger MFA approval
         </CardDescription>
@@ -784,7 +784,7 @@ const ResetApprovalForm = () => {
 
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
               <Send className="mr-2 h-4 w-4" />
-              Send Approval Request
+              Send Verification Request
             </Button>
           </form>
         ) : (

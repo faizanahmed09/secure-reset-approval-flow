@@ -9,11 +9,13 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Users, Edit, Save, X, Search, Plus, UserPlus, AlertCircle, Building2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Users, Edit, Save, X, Search, Plus, UserPlus, AlertCircle, Building2, Trash2, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { BeautifulLoader } from '@/app/loader';
 import { fetchOrganizationUsers, updateUser, searchAzureUsers, createDatabaseUser, deleteUser } from '@/services/userService';
 import { organizationService } from '@/services/organizationService';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/userAuthConfig';
 import { useTokenValidation } from '@/hooks/useTokenValidation';
@@ -379,6 +381,11 @@ const ApplicationUsers = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  // Helper function to capitalize role text
+  const capitalizeRole = (role: string) => {
+    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -438,8 +445,10 @@ const ApplicationUsers = () => {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-1 container py-12">
+        <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Link href="/admin-portal">
             <Button variant="outline" size="sm">
@@ -447,6 +456,14 @@ const ApplicationUsers = () => {
               Back to Portal
             </Button>
           </Link>
+          {isAdmin && (
+            <Link href="/subscription">
+              <Button variant="outline" size="sm">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Subscription
+              </Button>
+            </Link>
+          )}
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Users className="h-6 w-6" />
@@ -678,7 +695,7 @@ const ApplicationUsers = () => {
                           </Select>
                         ) : (
                           <Badge variant={u.role === 'admin' ? 'default' : u.role === 'verifier' ? 'secondary' : 'outline'}>
-                            {u.role}
+                            {capitalizeRole(u.role)}
                           </Badge>
                         )}
                       </TableCell>
@@ -757,6 +774,8 @@ const ApplicationUsers = () => {
           )}
         </CardContent>
       </Card>
+      </main>
+      <Footer />
     </div>
   );
 };

@@ -10,6 +10,8 @@ import SubscriptionStatusComponent from '@/components/SubscriptionStatus';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
 import { BeautifulLoader } from '@/app/loader';
 import { getSubscriptionStatus, SubscriptionStatus } from '@/services/subscriptionService';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 const SubscriptionPage = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -61,8 +63,10 @@ const SubscriptionPage = () => {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-1 container py-12">
+        <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Subscription Management</h1>
           <p className="text-gray-600">Manage your subscription and billing preferences</p>
@@ -85,6 +89,8 @@ const SubscriptionPage = () => {
         <h2 className="text-xl font-semibold mb-6">Available Plans</h2>
         <SubscriptionPlans subscriptionStatus={subscriptionStatus} plans={[]} />
       </div>
+      </main>
+      <Footer />
     </div>
   );
 };

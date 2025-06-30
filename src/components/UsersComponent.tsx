@@ -14,6 +14,8 @@ import { useRouter } from 'next/navigation';
 import Loader from "@/components/common/Loader";
 import { debounce } from 'lodash';
 import { getAccessToken } from '@/services/userService';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 interface AzureUser {
   id: string;
@@ -180,9 +182,9 @@ const UsersComponent = () => {
 
     // Add search filter
     if (query.trim()) {
-      const searchFilter = `startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}') or startswith(mail,'${query}')`;
-      params.append('$filter', searchFilter);
-      // Don't add orderby when using complex filter with search
+      // Use $search with proper property:value format for Microsoft Graph
+      params.append('$search', `"displayName:${query}" OR "mail:${query}" OR "userPrincipalName:${query}"`);
+      // Don't add orderby when using search
     } else {
       // Add sorting only when not searching
       const sortDirection = sortOrder === 'desc' ? 'desc' : 'asc';
@@ -494,15 +496,18 @@ const UsersComponent = () => {
   }
 
   return (
-    <div className="container py-8 max-w-7xl mx-auto">
-      <Button 
-        variant="outline" 
-        className="mb-6" 
-        onClick={() => router.push('/admin-portal')}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Home
-      </Button>
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-1 container py-12">
+        <div className="max-w-7xl mx-auto">
+          <Button 
+            variant="outline" 
+            className="mb-6" 
+            onClick={() => router.push('/admin-portal')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Button>
       
       <Card className="w-full">
         <CardHeader>
@@ -658,6 +663,9 @@ const UsersComponent = () => {
           )}
         </CardContent>
       </Card>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 };

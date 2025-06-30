@@ -52,6 +52,15 @@ const ChangeRequestTable = ({
     return format(new Date(dateString), "MMM dd, yyyy HH:mm:ss");
   };
 
+  // Helper function to capitalize status text
+  const capitalizeStatus = (status: string) => {
+    return status
+      .replace("_", " ")
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
   // Return status badge with appropriate color
   const getStatusBadge = (status: string) => {
     const statusColors: Record<string, { className: string }> = {
@@ -67,7 +76,7 @@ const ChangeRequestTable = ({
 
     return (
       <Badge className={style.className} variant="outline">
-        {status.replace("_", " ")}
+        {capitalizeStatus(status)}
       </Badge>
     );
   };
