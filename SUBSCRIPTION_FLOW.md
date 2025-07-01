@@ -12,7 +12,7 @@ Trials are automatically created when an organization is first set up:
 2. **Organization is updated** → `update-organization` edge function
 3. **Trial subscription created** → calls `create-trial-subscription` edge function
 4. **15-day trial starts** → Organization can use all features
-
+ 
 ### Edge Functions
 
 #### `update-organization`
