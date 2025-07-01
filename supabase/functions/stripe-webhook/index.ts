@@ -29,6 +29,22 @@ serve(async (req) => {
     const body = await req.text()
     const sig = req.headers.get('stripe-signature')
 
+    // Log the raw body from Stripe for debugging
+    console.log('=== STRIPE WEBHOOK BODY ===')
+    console.log('Body length:', body.length)
+    console.log('Signature present:', !!sig)
+    console.log('Raw body preview (first 500 chars):', body.substring(0, 500))
+    try {
+      const bodyObj = JSON.parse(body)
+      console.log('Event type:', bodyObj.type)
+      console.log('Event ID:', bodyObj.id)
+      console.log('Created:', bodyObj.created ? new Date(bodyObj.created * 1000).toISOString() : 'N/A')
+      console.log('API Version:', bodyObj.api_version)
+    } catch (parseError) {
+      console.log('⚠️  Could not parse body as JSON:', parseError.message)
+    }
+    console.log('=== END STRIPE WEBHOOK BODY ===\n')
+
     if (!sig) {
       return new Response('No signature', { status: 400 })
     }
@@ -111,6 +127,38 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
     console.log('Current Period End:', subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : 'null')
     console.log('Cancel at Period End:', subscription.cancel_at_period_end)
     console.log('Cancel At:', subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : 'null')
+    
+    // Detailed cancellation logging
+    console.log('--- CANCELLATION STATUS ANALYSIS ---')
+    console.log('🔍 CANCEL_AT_PERIOD_END DETECTION:')
+    console.log('  cancel_at_period_end:', subscription.cancel_at_period_end)
+    console.log('  cancel_at:', subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : 'null')
+    console.log('')
+    
+    if (subscription.cancel_at) {
+      const cancelDate = new Date(subscription.cancel_at * 1000)
+      const now = new Date()
+      const daysUntilCancel = Math.ceil((cancelDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      console.log('📅 SCHEDULED CANCELLATION:')
+      console.log('  Scheduled to cancel on:', cancelDate.toISOString())
+      console.log('  Days until cancellation:', daysUntilCancel)
+      console.log('  Status will remain active until then')
+      console.log('  ⚠️  NOTE: cancel_at date is logged but NOT stored in DB (field removed)')
+      console.log('  🎯 EXPECTATION: Will receive customer.subscription.deleted when cancel_at date arrives')
+    } else if (subscription.cancel_at_period_end) {
+      console.log('📅 CANCEL AT PERIOD END:')
+      console.log('  Will cancel at end of current period')
+      console.log('  Period ends:', subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : 'unknown')
+      console.log('  ✅ cancel_at_period_end=true is stored in DB and used by UI')
+      console.log('  🎯 EXPECTATION: Will receive customer.subscription.deleted when period ends')
+      console.log('  🔄 CURRENT ACTION: Subscription remains active, user can still use service')
+    } else {
+      console.log('✅ NO CANCELLATION SCHEDULED:')
+      console.log('  Subscription will continue renewing normally')
+      console.log('  cancel_at_period_end=false')
+    }
+    console.log('--- END CANCELLATION STATUS ANALYSIS ---')
+    
     console.log('Metadata:', subscription.metadata)
 
     const organizationId = subscription.metadata.organization_id
@@ -205,10 +253,17 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
       trial_start_date: subscription.status === 'trialing' ? getValidDate(subscription.trial_start) : null,
       trial_end_date: subscription.status === 'trialing' ? getValidDate(subscription.trial_end) : null,
       cancel_at_period_end: subscription.cancel_at_period_end,
+      // NOTE: cancels_at field was removed in migration 20250130_remove_unused_subscription_fields.sql
+      // Only cancel_at_period_end is stored in DB and used by UI components
       updated_at: new Date().toISOString()
     }
 
     console.log('📤 Updating database with:', updateData)
+    console.log('🗄️  Database field mapping:')
+    console.log('  - Stripe cancel_at_period_end → DB cancel_at_period_end:', updateData.cancel_at_period_end)
+    console.log('  - Plan name → DB plan_name:', updateData.plan_name)
+    console.log('  - User count → DB user_count:', updateData.user_count)
+    console.log('  ⚠️  NOTE: Stripe cancel_at is NOT stored (cancels_at field was removed from DB)')
 
     const { error } = await supabaseClient
       .from('subscriptions')
@@ -235,26 +290,129 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supabaseClient: any) {
   console.log('=== SUBSCRIPTION DELETED EVENT ===')
-  console.log('Subscription ID:', subscription.id)
-  console.log('Status at deletion:', subscription.status)
-  console.log('Canceled At:', subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : 'null')
-  console.log('Cancellation Details:', subscription.cancellation_details || 'none')
-  console.log('Metadata:', subscription.metadata)
+  console.log('🔍 CRITICAL ANALYSIS: Understanding deletion context')
+  console.log('')
+  
+  // Basic subscription info
+  console.log('📋 SUBSCRIPTION DETAILS:')
+  console.log('  Subscription ID:', subscription.id)
+  console.log('  Customer ID:', subscription.customer)
+  console.log('  Status at deletion:', subscription.status)
+  console.log('  Created:', subscription.created ? new Date(subscription.created * 1000).toISOString() : 'null')
+  console.log('  Metadata:', JSON.stringify(subscription.metadata, null, 2))
+  console.log('')
+  
+  // Cancellation timing analysis
+  console.log('⏰ CANCELLATION TIMING ANALYSIS:')
+  console.log('  canceled_at:', subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : 'null')
+  console.log('  current_period_start:', subscription.current_period_start ? new Date(subscription.current_period_start * 1000).toISOString() : 'null')
+  console.log('  current_period_end:', subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : 'null')
+  console.log('  cancel_at_period_end:', subscription.cancel_at_period_end)
+  console.log('  cancel_at:', subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : 'null')
+  console.log('')
+  
+  // Determine cancellation type
+  console.log('🔍 CANCELLATION TYPE DETECTION:')
+  const now = Math.floor(Date.now() / 1000)
+  const canceledAt = subscription.canceled_at || 0
+  const periodEnd = subscription.current_period_end || 0
+  
+  let cancellationType = 'UNKNOWN'
+  let cancellationReason = ''
+  
+  if (subscription.cancel_at_period_end) {
+    cancellationType = 'PERIOD_END_CANCELLATION'
+    cancellationReason = 'Subscription was set to cancel at period end and period has now ended'
+  } else if (canceledAt && periodEnd) {
+    if (Math.abs(canceledAt - periodEnd) < 60) { // Within 60 seconds
+      cancellationType = 'PERIOD_END_CANCELLATION'
+      cancellationReason = 'Canceled at approximately the same time as period end'
+    } else if (canceledAt < periodEnd) {
+      cancellationType = 'IMMEDIATE_CANCELLATION'
+      cancellationReason = 'Canceled immediately - before the period end date'
+    } else {
+      cancellationType = 'POST_PERIOD_CANCELLATION'
+      cancellationReason = 'Canceled after the period end (unusual)'
+    }
+  } else if (canceledAt) {
+    cancellationType = 'IMMEDIATE_CANCELLATION'
+    cancellationReason = 'Canceled immediately - no period end information available'
+  }
+  
+  console.log('  🎯 DETECTED TYPE:', cancellationType)
+  console.log('  📝 REASON:', cancellationReason)
+  console.log('')
+  
+  // Cancellation details analysis
+  console.log('📄 CANCELLATION DETAILS:')
+  if (subscription.cancellation_details) {
+    console.log('  Comment:', subscription.cancellation_details.comment || 'none')
+    console.log('  Feedback:', subscription.cancellation_details.feedback || 'none')
+    console.log('  Reason:', subscription.cancellation_details.reason || 'none')
+  } else {
+    console.log('  No cancellation details provided')
+  }
+  console.log('')
+  
+  // Time calculations
+  if (canceledAt && periodEnd) {
+    const timeDiff = periodEnd - canceledAt
+    const daysDiff = Math.round(timeDiff / (24 * 60 * 60))
+    console.log('📊 TIME CALCULATIONS:')
+    console.log('  Time between cancellation and period end:', timeDiff, 'seconds')
+    console.log('  Days between cancellation and period end:', daysDiff, 'days')
+    console.log('  Current time vs period end:', now > periodEnd ? 'AFTER period end' : 'BEFORE period end')
+    console.log('')
+  }
+  
+  // Database impact analysis
+  console.log('🗄️  DATABASE UPDATE STRATEGY:')
+  
+  let updateData: any = {
+    status: 'canceled',
+    updated_at: new Date().toISOString()
+  }
+  
+  if (cancellationType === 'IMMEDIATE_CANCELLATION') {
+    console.log('  Strategy: IMMEDIATE_CANCELLATION detected')
+    console.log('  Action: Clear period dates to indicate no remaining access')
+    updateData.current_period_end = null
+    updateData.current_period_start = null
+    console.log('  Result: User access should be blocked immediately')
+  } else {
+    console.log('  Strategy: PERIOD_END_CANCELLATION detected')
+    console.log('  Action: Keep period dates to allow access until expiration')
+    console.log('  Result: User access continues until period_end, then gets blocked')
+  }
+  
+  console.log('  Update data:', JSON.stringify(updateData, null, 2))
+  console.log('')
 
+  // Execute database update
+  console.log('💾 EXECUTING DATABASE UPDATE...')
   const { error } = await supabaseClient
     .from('subscriptions')
-    .update({ 
-      status: 'canceled',
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('stripe_subscription_id', subscription.id)
 
   if (error) {
     console.error('❌ Error updating deleted subscription:', error)
   } else {
-    console.log('✅ Successfully marked subscription as canceled')
-    console.log('ℹ️  User keeps access until subscription period ends, then check-subscription-access will set to RESTRICTED')
+    console.log('✅ Successfully updated subscription in database')
+    console.log('📈 EXPECTED FRONTEND BEHAVIOR:')
+    if (cancellationType === 'IMMEDIATE_CANCELLATION') {
+      console.log('  - Should show "Subscription Expired" (red warning)')
+      console.log('  - Should block admin/verifier user creation immediately')
+      console.log('  - Should hide seat information card')
+      console.log('  - Add User button should show "subscription required" badge')
+    } else {
+      console.log('  - Should show "Subscription Canceled" (orange warning)')
+      console.log('  - Should allow admin/verifier user creation until period end')
+      console.log('  - Should show seat information card')
+      console.log('  - Add User button should work normally')
+    }
   }
+  console.log('')
   console.log('=== END SUBSCRIPTION DELETED EVENT ===\n')
 }
 
@@ -274,6 +432,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
       console.log('✅ Retrieved subscription:', subscription.id, 'Status:', subscription.status)
       await handleSubscriptionUpdated(subscription, supabaseClient)
+      
     } catch (error) {
       console.error('❌ Error retrieving subscription:', error)
     }
@@ -282,6 +441,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
   }
   console.log('=== END CHECKOUT SESSION COMPLETED ===\n')
 }
+
+
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, supabaseClient: any) {
   console.log('=== INVOICE PAYMENT SUCCEEDED ===')
@@ -346,4 +507,6 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, supabaseClien
     }
   }
   console.log('=== END INVOICE PAYMENT FAILED ===\n')
-} 
+}
+
+ 

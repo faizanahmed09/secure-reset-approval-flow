@@ -56,8 +56,9 @@ export interface Subscription {
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
   stripe_price_id?: string;
-  plan_name: 'TRIAL' | 'STARTER';
+  plan_name: 'TRIAL' | 'STARTER' | 'RESTRICTED';
   status: string;
+  user_count: number; // Number of seats subscribed for
   trial_start_date?: string;
   trial_end_date?: string;
   current_period_start?: string;
@@ -333,3 +334,57 @@ export const getOrganizationUserCount = async (organizationId: string): Promise<
     throw error;
   }
 };
+
+/**
+ * Update subscription quantity when users are added/removed
+ */
+export const updateSubscriptionQuantity = async (
+  organizationId: string, 
+  newUserCount: number, 
+  prorationBehavior: 'always_invoice' | 'none' | 'create_prorations' = 'always_invoice'
+): Promise<{
+  success: boolean;
+  organization_id: string;
+  old_user_count: number;
+  new_user_count: number;
+  proration_behavior: string;
+  proration_details?: {
+    days_remaining: number;
+    current_period_end: string;
+    quantity_change: number;
+    note: string;
+  };
+  stripe_subscription_id: string;
+  updated_at: string;
+}> => {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/update-subscription-quantity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        organization_id: organizationId,
+        new_user_count: newUserCount,
+        proration_behavior: prorationBehavior
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to update subscription quantity: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update subscription quantity');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error updating subscription quantity:', error);
+    throw error;
+  }
+};
+

@@ -14,6 +14,8 @@ import Link from 'next/link';
 import { BeautifulLoader } from '@/app/loader';
 import { fetchOrganizationUsers, updateUser, searchAzureUsers, createDatabaseUser, deleteUser } from '@/services/userService';
 import { organizationService } from '@/services/organizationService';
+import { getSubscriptionStatus, getOrganizationUserCount } from '@/services/subscriptionService';
+import { calculateSeatInfo, handleAddUser as seatManagerAddUser, formatSeatInfo, getSeatStatus } from '@/utils/seatManager';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useMsal } from '@azure/msal-react';
@@ -31,6 +33,16 @@ import {
   DialogFooter,
   DialogClose
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface User {
   id: string;
@@ -83,19 +95,53 @@ const ApplicationUsers = () => {
   const [creatingUser, setCreatingUser] = useState(false);
   const [authError, setAuthError] = useState(false);
 
+    // Upgrade confirmation dialog state
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [pendingUser, setPendingUser] = useState<AzureUser | null>(null);
+  const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
+
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Subscription and seat management states
+  const [subscription, setSubscription] = useState<any>(null);
+  const [seatInfo, setSeatInfo] = useState<any>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [billingUserCount, setBillingUserCount] = useState(0); // Only admin + verifier users
 
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      fetchUsers();
+      // Fetch both subscription and users, then calculate seats
+      const loadData = async () => {
+        await Promise.all([
+          fetchUsers(),
+          fetchSubscriptionInfo(),
+          fetchBillingUserCount()
+        ]);
+      };
+      
+      loadData();
+      
       if (user.organizations) {
         setOrgName(user.organizations.display_name);
       }
     }
   }, [isAuthenticated, user]);
+
+  // Recalculate seat info whenever subscription or billing user count changes
+  useEffect(() => {
+    if (subscription && billingUserCount >= 0) {
+      const newSeatInfo = calculateSeatInfo(subscription, billingUserCount);
+      console.log('Seat info calculated:', {
+        subscription: subscription,
+        billingUserCount,
+        newSeatInfo
+      });
+      setSeatInfo(newSeatInfo);
+    }
+  }, [subscription, billingUserCount]);
 
   // Monitor authentication state and handle session expiration
   useEffect(() => {
@@ -124,6 +170,43 @@ const ApplicationUsers = () => {
     checkAuthState();
   }, [isAuthenticated, isLoading]);
 
+  // Handle Stripe checkout success/cancel URL parameters
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const upgradeStatus = urlParams.get('upgrade');
+    const sessionId = urlParams.get('session_id');
+    
+    if (upgradeStatus === 'success') {
+      toast({
+        title: 'Payment Successful!',
+        description: 'Your subscription has been upgraded and the user has been added successfully.',
+      });
+      
+      // Refresh data to show updated subscription and users
+      setTimeout(() => {
+        Promise.all([
+          fetchUsers(),
+          fetchSubscriptionInfo(),
+          fetchBillingUserCount()
+        ]);
+      }, 1000);
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (upgradeStatus === 'cancelled') {
+      toast({
+        title: 'Payment Cancelled',
+        description: 'The subscription upgrade was cancelled. No charges were made.',
+        variant: 'destructive',
+      });
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -134,6 +217,8 @@ const ApplicationUsers = () => {
 
       const users = await fetchOrganizationUsers(user.organization_id);
       setUsers(users);
+      
+      // Seat info will be recalculated by the useEffect hook
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -143,6 +228,34 @@ const ApplicationUsers = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubscriptionInfo = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingSubscription(true);
+      const subscriptionData = await getSubscriptionStatus(user.id);
+      setSubscription(subscriptionData.subscription);
+      
+      // Seat info will be recalculated by the useEffect hook
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
+
+  const fetchBillingUserCount = async () => {
+    if (!user?.organization_id) return;
+    
+    try {
+      const countData = await getOrganizationUserCount(user.organization_id);
+      console.log('Billing user count fetched:', countData);
+      setBillingUserCount(countData.userCount); // Only admin + verifier users
+    } catch (error) {
+      console.error('Error fetching billing user count:', error);
     }
   };
 
@@ -325,7 +438,7 @@ const ApplicationUsers = () => {
     }
   };
 
-  const handleCreateUser = async (azureUser: AzureUser) => {
+    const handleCreateUser = async (azureUser: AzureUser) => {
     if (!user?.organization_id || !user?.tenant_id || !user?.client_id) {
       toast({
         title: 'Error',
@@ -335,9 +448,101 @@ const ApplicationUsers = () => {
       return;
     }
 
+    // Check if this is a billable user (admin/verifier)
+    if (selectedRole === 'admin' || selectedRole === 'verifier') {
+      // Check if subscription is canceled AND has expired
+      if (subscription && subscription.status === 'canceled') {
+        // Check if the subscription has actually expired
+        const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end) : null;
+        const now = new Date();
+        
+        if (!currentPeriodEnd || now > currentPeriodEnd) {
+          // Subscription has truly expired
+          toast({
+            title: 'Subscription Expired',
+            description: 'Your subscription has expired. Please reactivate your subscription to add admin/verifier users.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        // If subscription is canceled but still within active period, allow user creation
+        console.log('🟡 Subscription is canceled but still active until:', currentPeriodEnd.toLocaleDateString());
+      }
+      
+      // Check if we need to show upgrade confirmation modal first
+      if (subscription && seatInfo) {
+        console.log('Seat check:', {
+          availableSeats: seatInfo.availableSeats,
+          billingUserCount,
+          subscribedSeats: subscription.user_count,
+          seatInfo
+        });
+        
+        if (seatInfo.availableSeats <= 0) {
+          // Close the add user dialog and show upgrade confirmation dialog
+          setShowAddUserDialog(false);
+          
+          // Show upgrade confirmation dialog
+          const newUserCount = billingUserCount + 1;
+          const pricePerUser = 9; // $9 per user
+          const newMonthlyTotal = newUserCount * pricePerUser;
+          const currentMonthlyTotal = subscription.user_count * pricePerUser;
+          
+          setUpgradeInfo({
+            currentSeats: subscription.user_count,
+            newSeats: newUserCount,
+            currentMonthlyTotal,
+            newMonthlyTotal,
+            additionalCost: newMonthlyTotal - currentMonthlyTotal
+          });
+          setPendingUser(azureUser);
+          setShowUpgradeDialog(true);
+          return;
+        }
+      }
+    }
+
+    // Proceed with user creation (either basic user or we have available seats)
+    await createUserDirectly(azureUser);
+  };
+
+  const createUserDirectly = async (azureUser: AzureUser) => {
+    if (!user?.organization_id || !user?.tenant_id || !user?.client_id) return;
+
     try {
       setCreatingUser(true);
       
+      // Check seat availability for admin/verifier users and handle automatic upgrades
+      if (subscription && seatInfo && (selectedRole === 'admin' || selectedRole === 'verifier')) {
+        console.log('🔄 Checking seat availability and handling upgrades...');
+        
+        const seatResult = await seatManagerAddUser(
+          user.organization_id,
+          subscription,
+          billingUserCount
+        );
+        
+        if (!seatResult.canAdd) {
+          toast({
+            title: 'Cannot Add User',
+            description: seatResult.message,
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        // Show upgrade success message if subscription was upgraded
+        if (seatResult.needsUpgrade && seatResult.prorationDetails) {
+          toast({
+            title: 'Subscription Upgraded',
+            description: `Upgraded to ${seatResult.newSeatCount} seats. ${seatResult.message}`,
+          });
+        }
+      }
+      
+      console.log('🔄 Creating user in database...');
+      
+      // Create the user in database
       const newUser = await createDatabaseUser(
         azureUser,
         selectedRole,
@@ -346,8 +551,16 @@ const ApplicationUsers = () => {
         user.client_id
       );
 
+      console.log('✅ User created successfully');
+
       // Add to local state
       setUsers([newUser, ...users]);
+      
+      // Refresh billing user count and subscription info
+      await Promise.all([
+        fetchBillingUserCount(),
+        fetchSubscriptionInfo()
+      ]);
       
       // Reset dialog state
       setShowAddUserDialog(false);
@@ -361,15 +574,164 @@ const ApplicationUsers = () => {
         description: `User ${azureUser.displayName} created successfully`,
       });
     } catch (error: any) {
-      console.error('Error creating user:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create user',
-        variant: 'destructive',
-      });
+      console.error('❌ Error in user creation process:', error);
+      
+      // More specific error messages
+      if (error.message?.includes('subscription')) {
+        toast({
+          title: 'Subscription Upgrade Failed',
+          description: 'Your subscription could not be upgraded. Please check your payment method and try again.',
+          variant: 'destructive',
+        });
+      } else if (error.message?.includes('payment') || error.message?.includes('card')) {
+        toast({
+          title: 'Payment Failed',
+          description: 'Payment could not be processed. Please update your payment method and try again.',
+          variant: 'destructive',
+        });
+      } else if (error.message?.includes('user') || error.message?.includes('database')) {
+        toast({
+          title: 'User Creation Failed',
+          description: 'The subscription was updated but user creation failed. Please contact support.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message || 'An unexpected error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+      
+      // Refresh data to sync any partial changes
+      await Promise.all([
+        fetchBillingUserCount(),
+        fetchSubscriptionInfo()
+      ]);
     } finally {
       setCreatingUser(false);
     }
+  };
+
+  const handleUpgradeConfirm = async () => {
+    if (!pendingUser || !upgradeInfo || !user?.organization_id || !user?.tenant_id || !user?.client_id) return;
+    
+    try {
+      setCreatingUser(true);
+      setShowUpgradeDialog(false);
+      
+      console.log('🔄 Confirming upgrade and creating user...');
+      
+      // Use automatic seat manager to upgrade subscription
+      const seatResult = await seatManagerAddUser(
+        user.organization_id,
+        subscription!,
+        billingUserCount
+      );
+      
+      if (!seatResult.canAdd) {
+        toast({
+          title: 'Cannot Add User',
+          description: seatResult.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Show upgrade success message if subscription was upgraded
+      if (seatResult.needsUpgrade && seatResult.prorationDetails) {
+        toast({
+          title: 'Subscription Upgraded',
+          description: `Upgraded to ${seatResult.newSeatCount} seats. ${seatResult.message}`,
+        });
+      }
+      
+      console.log('🔄 Creating user in database...');
+      
+      // Create the user in database
+      const newUser = await createDatabaseUser(
+        pendingUser,
+        selectedRole,
+        user.organization_id,
+        user.tenant_id,
+        user.client_id
+      );
+
+      console.log('✅ User created successfully');
+
+      // Add to local state
+      setUsers([newUser, ...users]);
+      
+      // Refresh billing user count and subscription info
+      await Promise.all([
+        fetchBillingUserCount(),
+        fetchSubscriptionInfo()
+      ]);
+      
+      // Reset dialog state
+      setSearchQuery('');
+      setAzureUsers([]);
+      setSelectedRole('basic');
+      setAuthError(false);
+
+      toast({
+        title: 'Success',
+        description: `User ${pendingUser.displayName} created successfully`,
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error in upgrade and user creation process:', error);
+      
+      // More specific error messages
+      if (error.message?.includes('subscription')) {
+        toast({
+          title: 'Subscription Upgrade Failed',
+          description: 'Your subscription could not be upgraded. Please check your payment method and try again.',
+          variant: 'destructive',
+        });
+      } else if (error.message?.includes('payment') || error.message?.includes('card')) {
+        toast({
+          title: 'Payment Failed',
+          description: 'Payment could not be processed. Please update your payment method and try again.',
+          variant: 'destructive',
+        });
+      } else if (error.message?.includes('user') || error.message?.includes('database')) {
+        toast({
+          title: 'User Creation Failed',
+          description: 'The subscription was updated but user creation failed. Please contact support.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message || 'An unexpected error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+      
+      // Refresh data to sync any partial changes
+      await Promise.all([
+        fetchBillingUserCount(),
+        fetchSubscriptionInfo()
+      ]);
+      
+      // Reopen add user dialog on error
+      setShowAddUserDialog(true);
+    } finally {
+      setCreatingUser(false);
+      // Clean up dialog state
+      setPendingUser(null);
+      setUpgradeInfo(null);
+    }
+  };
+
+  const handleUpgradeCancel = () => {
+    setShowUpgradeDialog(false);
+    setPendingUser(null);
+    setUpgradeInfo(null);
+    
+    // Reopen the add user dialog so user can try again or cancel
+    setShowAddUserDialog(true);
   };
 
   // Debounced search
@@ -380,6 +742,36 @@ const ApplicationUsers = () => {
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  // Helper function to check if subscription is truly expired (not just canceled)
+  const isSubscriptionExpired = (subscription: any): boolean => {
+    if (!subscription) return true;
+    
+    // Case 1: Cancel immediately - status is "canceled" and no period end date
+    if (subscription.status === 'canceled' && !subscription.current_period_end) {
+      return true; // Access blocked immediately
+    }
+    
+    // Case 2: Cancel at period end - status is "active" but cancel_at_period_end is true
+    if (subscription.status === 'active' && subscription.cancel_at_period_end) {
+      return false; // Still has access until period end
+    }
+    
+    // Case 3: Cancel at period end - status is "canceled" but period end date exists
+    if (subscription.status === 'canceled' && subscription.current_period_end) {
+      const currentPeriodEnd = new Date(subscription.current_period_end);
+      const now = new Date();
+      return now > currentPeriodEnd; // Check if period has actually ended
+    }
+    
+    // Case 4: Active subscription
+    if (subscription.status === 'active') {
+      return false; // Active subscriptions are not expired
+    }
+    
+    // Case 5: Other statuses (past_due, unpaid, etc.)
+    return subscription.status !== 'active';
+  };
 
   // Helper function to capitalize role text
   const capitalizeRole = (role: string) => {
@@ -403,11 +795,25 @@ const ApplicationUsers = () => {
     try {
       const result = await deleteUser(userToDelete.id, user.email);
       if (result.success) {
-        toast({
-          title: 'Success',
-          description: 'User deleted successfully',
-        });
-        setUsers(users.filter(u => u.id !== userToDelete.id));
+        const newUsers = users.filter(u => u.id !== userToDelete.id);
+        setUsers(newUsers);
+        
+        // Update billing user count after user removal
+        if (subscription && user?.organization_id) {
+          // Refresh billing user count since we removed a user
+          await fetchBillingUserCount();
+          
+          toast({
+            title: 'Success',
+            description: 'User deleted successfully.',
+          });
+        } else {
+          toast({
+            title: 'Success',
+            description: 'User deleted successfully',
+          });
+        }
+        
         setUserToDelete(null);
       } else {
         throw new Error(result.message);
@@ -501,6 +907,131 @@ const ApplicationUsers = () => {
         </div>
       </div>
 
+      {/* Seat Information Card */}
+      {isAdmin && seatInfo && subscription && !isSubscriptionExpired(subscription) && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Subscription Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{seatInfo.subscribedSeats}</div>
+                <div className="text-sm text-muted-foreground">Subscribed Seats</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{seatInfo.activeUsers}</div>
+                <div className="text-sm text-muted-foreground">Billable Users</div>
+                <div className="text-xs text-muted-foreground">(Admin + Verifier)</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-2xl font-bold ${seatInfo.availableSeats > 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                  {seatInfo.availableSeats}
+                </div>
+                <div className="text-sm text-muted-foreground">Available Seats</div>
+              </div>
+              <div className="text-center">
+                <Badge variant={getSeatStatus(seatInfo) === 'available' ? 'secondary' : getSeatStatus(seatInfo) === 'full' ? 'destructive' : 'outline'}>
+                  {getSeatStatus(seatInfo) === 'available' ? 'Can Add Users' : 
+                   getSeatStatus(seatInfo) === 'full' ? 'At Seat Limit' : 'Over Limit'}
+                </Badge>
+                <div className="text-sm text-muted-foreground mt-1">{formatSeatInfo(seatInfo)}</div>
+              </div>
+            </div>
+            {seatInfo.availableSeats > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  💡 You can add {seatInfo.availableSeats} more admin/verifier user{seatInfo.availableSeats === 1 ? '' : 's'} without additional charge.
+                </p>
+                <p className="text-xs text-green-700 mt-1">
+                  Basic users are always free and don't count towards your subscription.
+                </p>
+              </div>
+            )}
+            {seatInfo.availableSeats === 0 && (
+              <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <p className="text-sm text-orange-800">
+                  ⚠️ At seat limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  Basic users are always free and don't count towards your subscription.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Canceled/Canceling Subscription Warning */}
+      {isAdmin && subscription && (subscription.status === 'canceled' || subscription.cancel_at_period_end) && (
+        <Card className={`mb-6 ${isSubscriptionExpired(subscription) ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 ${isSubscriptionExpired(subscription) ? 'text-red-800' : 'text-orange-800'}`}>
+              <CreditCard className="h-5 w-5" />
+              {isSubscriptionExpired(subscription) ? 'Subscription Expired' : 'Subscription Canceled'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {isSubscriptionExpired(subscription) ? (
+                <>
+                  <p className="text-red-700">
+                    Your subscription has expired. Please reactivate your subscription to continue adding admin/verifier users.
+                  </p>
+                  <div className="bg-red-100 p-3 rounded-md">
+                    <p className="text-sm text-red-800">
+                      {subscription.current_period_end ? (
+                        <><strong>Expired on:</strong> {new Date(subscription.current_period_end).toLocaleDateString()}</>
+                      ) : (
+                        <><strong>Status:</strong> Subscription was canceled and terminated.</>
+                      )}
+                    </p>
+                  </div>
+                </>
+              ) : subscription.cancel_at_period_end && subscription.status === 'active' ? (
+                <>
+                  <p className="text-orange-700">
+                    Your subscription is scheduled to cancel at the end of your billing period. You can continue adding users normally until then.
+                  </p>
+                  <div className="bg-orange-100 p-3 rounded-md">
+                    <p className="text-sm text-orange-800">
+                      <strong>Access expires:</strong> {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
+                    </p>
+                    <p className="text-sm text-orange-700 mt-1">
+                      After this date, you'll need to reactivate your subscription to continue adding admin/verifier users.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-orange-700">
+                    Your subscription has been canceled but is still active until the end of your billing period. You can continue adding users normally.
+                  </p>
+                  <div className="bg-orange-100 p-3 rounded-md">
+                    <p className="text-sm text-orange-800">
+                      <strong>Access expires:</strong> {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
+                    </p>
+                    <p className="text-sm text-orange-700 mt-1">
+                      After this date, you'll need to reactivate your subscription to continue adding admin/verifier users.
+                    </p>
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <Link href="/subscription">
+                  <Button variant="default" size="sm">
+                    Reactivate Subscription
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -516,9 +1047,24 @@ const ApplicationUsers = () => {
             {isAdmin && (
               <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="relative">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add User
+                    {isSubscriptionExpired(subscription) ? (
+                      <Badge variant="destructive" className="ml-2 h-5 text-xs">
+                        subscription required
+                      </Badge>
+                    ) : seatInfo && (
+                      <Badge 
+                        variant={seatInfo.availableSeats > 0 ? "secondary" : "destructive"} 
+                        className="ml-2 h-5 text-xs"
+                      >
+                        {seatInfo.availableSeats > 0 
+                          ? `${seatInfo.availableSeats} free seats` 
+                          : 'upgrade needed'
+                        }
+                      </Badge>
+                    )}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
@@ -527,6 +1073,51 @@ const ApplicationUsers = () => {
                     <DialogDescription>
                       Search for Azure AD users and add them to your organization
                     </DialogDescription>
+                    {isSubscriptionExpired(subscription) ? (
+                      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                        <div className="text-sm text-red-800">
+                          ⚠️ Your subscription has expired. You can only add basic users.
+                        </div>
+                        <div className="text-xs text-red-700 mt-1">
+                          Reactivate your subscription to add admin/verifier users.
+                        </div>
+                      </div>
+                    ) : subscription?.cancel_at_period_end && subscription.status === 'active' ? (
+                      <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                        <div className="text-sm text-orange-800">
+                          🟡 Your subscription is scheduled to cancel on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'end of period'}.
+                        </div>
+                        <div className="text-xs text-orange-700 mt-1">
+                          You can continue adding users normally until the cancellation date.
+                        </div>
+                      </div>
+                    ) : subscription?.status === 'canceled' && subscription?.current_period_end ? (
+                      <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                        <div className="text-sm text-orange-800">
+                          🟡 Your subscription is canceled but still active until {new Date(subscription.current_period_end).toLocaleDateString()}.
+                        </div>
+                        <div className="text-xs text-orange-700 mt-1">
+                          You can continue adding users normally until the expiration date.
+                        </div>
+                      </div>
+                    ) : seatInfo && (
+                      <div className="mt-2 text-sm space-y-1">
+                        <div>
+                          {seatInfo.availableSeats > 0 ? (
+                            <span className="text-green-600">
+                              ✅ {seatInfo.availableSeats} seat{seatInfo.availableSeats === 1 ? '' : 's'} available for admin/verifier users
+                            </span>
+                          ) : (
+                            <span className="text-orange-600">
+                              ⚠️ At seat limit - adding admin/verifier users will upgrade subscription
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          💡 Basic users are always free and don't require seats
+                        </div>
+                      </div>
+                    )}
                   </DialogHeader>
                   
                   <div className="space-y-4">
@@ -774,6 +1365,60 @@ const ApplicationUsers = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Upgrade Confirmation Dialog */}
+      <AlertDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Subscription Upgrade Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adding this {selectedRole} user will exceed your current seat limit. Your subscription will be automatically upgraded.
+            </AlertDialogDescription>
+            {upgradeInfo && (
+              <div className="bg-muted p-4 rounded-lg space-y-2 mt-3">
+                <div className="flex justify-between">
+                  <span>Current seats:</span>
+                  <span>{upgradeInfo.currentSeats}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>New seats:</span>
+                  <span>{upgradeInfo.newSeats}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current monthly cost:</span>
+                  <span>${upgradeInfo.currentMonthlyTotal}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>New monthly cost:</span>
+                  <span>${upgradeInfo.newMonthlyTotal}</span>
+                </div>
+                <div className="flex justify-between text-green-600 font-semibold">
+                  <span>Additional cost:</span>
+                  <span>+${upgradeInfo.additionalCost}/month</span>
+                </div>
+              </div>
+            )}
+            {upgradeInfo && (
+              <div className="text-sm text-muted-foreground mt-3">
+                You will be charged a prorated amount for the remainder of your current billing period.
+              </div>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleUpgradeCancel}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleUpgradeConfirm}
+              disabled={creatingUser}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {creatingUser ? 'Upgrading...' : 'Upgrade & Add User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       </main>
       <Footer />
     </div>

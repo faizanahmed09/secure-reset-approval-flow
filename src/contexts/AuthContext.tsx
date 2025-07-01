@@ -69,19 +69,27 @@ const checkNeedsOrganizationSetup = (user: User | null): boolean => {
     }
   }
 
-  // Check if this is the user's first login (created_at and last_login_at are very close)
-  if (user.created_at && user.last_login_at) {
-    const createdAt = new Date(user.created_at);
-    const lastLoginAt = new Date(user.last_login_at);
-    const timeDifference = Math.abs(lastLoginAt.getTime() - createdAt.getTime());
-    
-    // If the difference is less than 2 minutes, consider it a first login
-    const isFirstLogin = timeDifference < 2 * 60 * 1000;
-    
-    return isFirstLogin;
+  // Check if the organization exists
+  if (!user.organizations?.id) {
+    return false;
   }
 
-  return false;
+  // If updated_at is different from created_at, it means someone has already updated the organization (completed setup)
+  if (user.organizations.updated_at && user.organizations.created_at) {
+    const updatedAt = new Date(user.organizations.updated_at).getTime();
+    const createdAt = new Date(user.organizations.created_at).getTime();
+    
+    // If updated_at is different from created_at, setup has been completed
+    if (updatedAt !== createdAt) {
+      // Mark as completed in session storage to avoid checking again
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('organizationSetupCompleted', 'true');
+      }
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -96,7 +104,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const processUserFromToken = useCallback(async (idToken: string, accessToken?: string) => {
     try {
       const decodedToken = jwtDecode<any>(idToken);
-      console.log("Decoded token:", decodedToken);
 
       const userInfo = {
         email: decodedToken.preferred_username || decodedToken.email || "",

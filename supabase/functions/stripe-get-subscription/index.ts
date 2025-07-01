@@ -160,6 +160,7 @@ serve(async (req) => {
       stripe_price_id: subscription.stripe_price_id,
       plan_name: subscription.plan_name,
       status: subscription.status,
+      user_count: subscription.user_count || 1, // ✅ FIXED - Include user_count field
       trial_start_date: subscription.trial_start_date,
       trial_end_date: subscription.trial_end_date,
       current_period_start: subscription.current_period_start,

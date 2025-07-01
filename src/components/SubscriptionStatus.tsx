@@ -189,7 +189,7 @@ const SubscriptionStatusComponent = ({
               {/* {subscription?.is_trial ? 'Free Trial' : `$${(parseFloat(subscription?.plan?.formatted_price?.replace('$', '') || '0') * (userCount || 1)).toFixed(2)}`} */}
 
               <span className="text-sm text-gray-600 ml-1">
-                {subscription?.is_trial ? '' : `for ${userCount} user${userCount !== 1 ? 's' : ''}`}
+                {subscription?.is_trial ? '' : `for ${subscription?.user_count} user${userCount !== 1 ? 's' : ''}`}
               </span>
             </p>
           </div>
