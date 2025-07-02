@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Loader from "@/components/common/Loader";
+import { loginRequest } from '@/authConfig';
 
 // Helper function to parse URL hash parameters
 function parseUrlHash(hash: string) {
@@ -106,7 +107,7 @@ export default function AuthCallback() {
           
           const tokenRequestBody = new URLSearchParams({
             client_id: 'aad5399a-e678-4857-80be-a1664910d86a',
-            scope: 'User.Read openid profile',
+            scope: loginRequest.scopes.join(' '),
             code: hashParams.code,
             redirect_uri: `${window.location.origin}/auth-callback`,
             grant_type: 'authorization_code',
