@@ -33,22 +33,21 @@ const ResetApproval = () => {
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 container py-12">
-          <div className="flex flex-col items-center">
-            <div className="max-w-md w-full space-y-8">
-                <ResetApprovalForm />
-            </div>
-          </div>
-          {/* button to show to top left corner of page */}
-          <div className="fixed top-20 left-4 z-10">
+          <div className="max-w-7xl mx-auto">
             <Button
               variant="outline"
-              className="mb-4"
+              className="mb-6"
               onClick={() => router.push("/admin-portal")}
-              >
-              <ArrowLeft className="h-4 w-4" />
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home
             </Button>
-          </div> 
+            <div className="flex flex-col items-center">
+              <div className="max-w-md w-full space-y-8">
+                  <ResetApprovalForm />
+              </div>
+            </div>
+          </div>
         </main>
         <Footer />
       </div>

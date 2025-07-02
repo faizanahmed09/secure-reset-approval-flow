@@ -128,6 +128,7 @@ const ChangeRequestTable = ({
     if (isLoading) {
       return Array(filters.pageSize).fill(0).map((_, index) => (
         <TableRow key={`loading-${index}`}>
+          <TableCell key={`loading-index-${index}`}><Skeleton className="h-6 w-full" /></TableCell>
           {Array(6).fill(0).map((_, colIndex) => (
             <TableCell key={`loading-cell-${index}-${colIndex}`}>
               <Skeleton className="h-6 w-full" />
@@ -140,14 +141,14 @@ const ChangeRequestTable = ({
     if (changeRequests.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={6} className="h-32 text-center">
+          <TableCell colSpan={7} className="h-32 text-center">
             No requests found.
           </TableCell>
         </TableRow>
       );
     }
 
-    return changeRequests.map((request) => (
+    return changeRequests.map((request, idx) => (
       <TableRow
         key={request.id}
         className={
@@ -156,6 +157,7 @@ const ChangeRequestTable = ({
             : "hover:bg-muted/50"
         }
       >
+        <TableCell>{(filters.page - 1) * filters.pageSize + idx + 1}</TableCell>
         <TableCell>{formatDate(request.created_at)}</TableCell>
         <TableCell className="font-medium">{request.user_email}</TableCell>
         <TableCell>
@@ -185,22 +187,27 @@ const ChangeRequestTable = ({
   };
 
   return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>User</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Notification</TableHead>
-            <TableHead>Push by</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {renderTableContent()}
-        </TableBody>
-      </Table>
+    <div className="relative mt-2">
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
+      <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl p-4">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gradient-to-r from-blue-50 via-blue-100 to-blue-50">
+              <TableHead className="font-bold text-blue-700">#</TableHead>
+              <TableHead className="font-bold text-blue-700">Date</TableHead>
+              <TableHead className="font-bold text-blue-700">User</TableHead>
+              <TableHead className="font-bold text-blue-700">Status</TableHead>
+              <TableHead className="font-bold text-blue-700">Notification</TableHead>
+              <TableHead className="font-bold text-blue-700">Push by</TableHead>
+              <TableHead className="font-bold text-blue-700">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {renderTableContent()}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Pagination */}
       {!isLoading && changeRequests.length > 0 && (
@@ -291,7 +298,7 @@ const ChangeRequestTable = ({
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

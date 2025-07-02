@@ -496,7 +496,7 @@ const UsersComponent = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
       <Header />
       <main className="flex-1 container py-12">
         <div className="max-w-7xl mx-auto">
@@ -508,161 +508,157 @@ const UsersComponent = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </Button>
-      
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Users className="h-6 w-6 text-blue-600" />
-              <span>Entra ID Users</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="outline" className="text-xs">
-                <Database className="h-3 w-3 mr-1" />
-                Cache: {userCache.current.getSize()} entries
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={loading || searchLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${(loading || searchLoading) ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </CardTitle>
-          <CardDescription>
-            Search for your user in Entra ID
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Search and Filter Controls */}
-          <div className="flex flex-col lg:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search users by name or email (type 2+ characters)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              {searchLoading && (
-                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-            </div>
-            
-            <div className="flex gap-2">
-              <Select value={sortBy} onValueChange={(value: SortField) => handleSortChange(value)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="displayName">Display Name</SelectItem>
-                  <SelectItem value="userPrincipalName">Email</SelectItem>
-                  <SelectItem value="mail">Alternate Email</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              >
-                {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-
-          {/* Results Info */}
-          {users.length > 0 && (
-            <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Showing {users.length}{totalCount > 0 ? ` of ${totalCount}` : ''} users
-              </span>
-              {searchQuery && searchQuery.length >= 2 && (
-                <Badge variant="outline">
-                  <Filter className="h-3 w-3 mr-1" />
-                  Search: "{searchQuery}"
-                </Badge>
-              )}
-              {nextLink && (
-                <Badge variant="outline" className="text-blue-600">
-                  More available
-                </Badge>
-              )}
-              <Badge variant="outline">
-                Sorted by {sortBy} ({sortOrder})
-              </Badge>
-            </div>
-          )}
-          
-          {/* Users List */}
-          {users.length > 0 ? (
-            <div className="space-y-4">
-              {UserList}
-              
-              {/* Load More Button */}
-              {nextLink && (
-                <div className="flex justify-center pt-6">
-                  <Button 
-                    onClick={loadMoreUsers} 
-                    disabled={loadingMore}
-                    variant="outline"
-                    className="w-full max-w-sm"
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading more users...
-                      </>
-                    ) : (
-                      <>
-                        Load More Users
-                        {totalCount > 0 && (
-                          <span className="ml-2 text-xs">
-                            ({users.length}/{totalCount})
-                          </span>
-                        )}
-                      </>
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
+            <Card className="relative w-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-6 w-6 text-blue-600" />
+                    <span>Entra ID Users</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-xs">
+                      <Database className="h-3 w-3 mr-1" />
+                      Cache: {userCache.current.getSize()} entries
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefresh}
+                      disabled={loading || searchLoading}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${(loading || searchLoading) ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardTitle>
+                <CardDescription>
+                  Search for your user in Entra ID
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Search and Filter Controls */}
+                <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search users by name or email (type 2+ characters)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-10"
+                    />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
-                  </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={sortBy} onValueChange={(value: SortField) => handleSortChange(value)}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="displayName">Display Name</SelectItem>
+                        <SelectItem value="userPrincipalName">Email</SelectItem>
+                        <SelectItem value="mail">Alternate Email</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    >
+                      {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-muted-foreground mb-4">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                {searchQuery && searchQuery.length >= 2 ? (
-                  <>
-                    <p className="text-lg font-medium">No users found</p>
-                    <p>No users match your search "{searchQuery}"</p>
-                  </>
-                ) : searchQuery && searchQuery.length < 2 ? (
-                  <>
-                    <p className="text-lg font-medium">Type to search</p>
-                    <p>Enter at least 2 characters to search users</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg font-medium">No users found</p>
-                    <p>Check your permissions or try refreshing</p>
-                  </>
+                {/* Results Info */}
+                {users.length > 0 && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span>
+                      Showing {users.length}{totalCount > 0 ? ` of ${totalCount}` : ''} users
+                    </span>
+                    {searchQuery && searchQuery.length >= 2 && (
+                      <Badge variant="outline">
+                        <Filter className="h-3 w-3 mr-1" />
+                        Search: "{searchQuery}"
+                      </Badge>
+                    )}
+                    {nextLink && (
+                      <Badge variant="outline" className="text-blue-600">
+                        More available
+                      </Badge>
+                    )}
+                    <Badge variant="outline">
+                      Sorted by {sortBy} ({sortOrder})
+                    </Badge>
+                  </div>
                 )}
-              </div>
-              {searchQuery && (
-                <Button
-                  variant="outline"
-                  onClick={() => setSearchQuery('')}
-                >
-                  Clear Search
-                </Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                {users.length > 0 ? (
+                  <div className="space-y-4">
+                    {UserList}
+                    {nextLink && (
+                      <div className="flex justify-center pt-6">
+                        <Button 
+                          onClick={loadMoreUsers} 
+                          disabled={loadingMore}
+                          variant="outline"
+                          className="w-full max-w-sm"
+                        >
+                          {loadingMore ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading more users...
+                            </>
+                          ) : (
+                            <>
+                              Load More Users
+                              {totalCount > 0 && (
+                                <span className="ml-2 text-xs">
+                                  ({users.length}/{totalCount})
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-muted-foreground mb-4">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      {searchQuery && searchQuery.length >= 2 ? (
+                        <>
+                          <p className="text-lg font-medium">No users found</p>
+                          <p>No users match your search "{searchQuery}"</p>
+                        </>
+                      ) : searchQuery && searchQuery.length < 2 ? (
+                        <>
+                          <p className="text-lg font-medium">Type to search</p>
+                          <p>Enter at least 2 characters to search users</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-lg font-medium">No users found</p>
+                          <p>Check your permissions or try refreshing</p>
+                        </>
+                      )}
+                    </div>
+                    {searchQuery && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setSearchQuery('')}
+                      >
+                        Clear Search
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
       <Footer />

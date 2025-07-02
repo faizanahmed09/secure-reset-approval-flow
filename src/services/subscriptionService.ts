@@ -64,6 +64,7 @@ export interface Subscription {
   current_period_start?: string;
   current_period_end?: string;
   cancel_at_period_end: boolean;
+  cancel_at?: string; // For scheduled cancellations at specific dates
   plan?: {
     name: string;
     description: string;

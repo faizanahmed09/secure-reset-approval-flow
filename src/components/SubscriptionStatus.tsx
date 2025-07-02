@@ -14,7 +14,11 @@ import {
   ExternalLink,
   Crown,
   Zap,
-  Building2
+  Building2,
+  Sparkles,
+  Shield,
+  Timer,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -99,24 +103,50 @@ const SubscriptionStatusComponent = ({
   };
 
   const getPlanIcon = (planName: string) => {
-    if (planName.toLowerCase().includes('basic')) return <Zap className="h-5 w-5" />;
-    if (planName.toLowerCase().includes('pro')) return <Crown className="h-5 w-5" />;
-    if (planName.toLowerCase().includes('enterprise')) return <Building2 className="h-5 w-5" />;
-    return <Zap className="h-5 w-5" />;
+    if (planName.toLowerCase().includes('basic')) return <Zap className="h-6 w-6" />;
+    if (planName.toLowerCase().includes('pro')) return <Crown className="h-6 w-6" />;
+    if (planName.toLowerCase().includes('enterprise')) return <Building2 className="h-6 w-6" />;
+    return <Zap className="h-6 w-6" />;
   };
 
   const getStatusBadge = (status: string) => {
+    const baseClasses = "flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium shadow-lg";
+    
     switch (status) {
       case 'active':
-        return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+        return (
+          <Badge className={`${baseClasses} bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0`}>
+            <CheckCircle className="h-3 w-3" />
+            Active
+          </Badge>
+        );
       case 'trialing':
-        return <Badge className="bg-blue-500"><Calendar className="h-3 w-3 mr-1" />Trial</Badge>;
+        return (
+          <Badge className={`${baseClasses} bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0`}>
+            <Timer className="h-3 w-3" />
+            Trial
+          </Badge>
+        );
       case 'past_due':
-        return <Badge className="bg-orange-500"><AlertTriangle className="h-3 w-3 mr-1" />Past Due</Badge>;
+        return (
+          <Badge className={`${baseClasses} bg-gradient-to-r from-orange-500 to-red-500 text-white border-0`}>
+            <AlertTriangle className="h-3 w-3" />
+            Past Due
+          </Badge>
+        );
       case 'canceled':
-        return <Badge className="bg-red-500">Canceled</Badge>;
+        return (
+          <Badge className={`${baseClasses} bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0`}>
+            Canceled
+          </Badge>
+        );
       case 'unpaid':
-        return <Badge className="bg-red-500"><AlertTriangle className="h-3 w-3 mr-1" />Unpaid</Badge>;
+        return (
+          <Badge className={`${baseClasses} bg-gradient-to-r from-red-600 to-pink-600 text-white border-0`}>
+            <AlertTriangle className="h-3 w-3" />
+            Unpaid
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -132,12 +162,21 @@ const SubscriptionStatusComponent = ({
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200/30 rounded-full blur-3xl"></div>
+        <CardContent className="p-8">
+          <div className="animate-pulse space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-blue-200 rounded-xl"></div>
+              <div className="space-y-2 flex-1">
+                <div className="h-6 bg-blue-200 rounded-lg w-1/3"></div>
+                <div className="h-4 bg-blue-200 rounded w-1/2"></div>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="h-20 bg-blue-200 rounded-xl"></div>
+              <div className="h-20 bg-blue-200 rounded-xl"></div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -146,105 +185,150 @@ const SubscriptionStatusComponent = ({
 
   if (!subscriptionStatus?.hasActiveSubscription) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No Active Subscription</CardTitle>
-          <CardDescription>
-            No active subscription found for this user.
-          </CardDescription>
+      <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gray-200/30 rounded-full blur-3xl"></div>
+        <CardHeader className="relative">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-gray-400 to-gray-500 rounded-xl">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl text-gray-900">No Active Subscription</CardTitle>
+              <CardDescription className="text-gray-600">
+                No active subscription found for this user.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
       </Card>
     );
   }
 
   const { subscription } = subscriptionStatus;
-  console.log('Subscription Status:', subscriptionStatus);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50 group hover:shadow-3xl transition-all duration-500">
+      {/* Background decorations */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-300/30 to-blue-400/30 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-tr from-blue-200/20 to-blue-300/20 rounded-full blur-2xl"></div>
+      
+      <CardHeader className="relative">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-blue-600">
-              {getPlanIcon(subscription?.plan?.name || '')}
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                <div className="text-white">
+                  {getPlanIcon(subscription?.plan?.name || '')}
+                </div>
+              </div>
+              <div className="absolute -top-1 -right-1">
+                <div className="p-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full">
+                  <Sparkles className="h-3 w-3 text-white" />
+                </div>
+              </div>
             </div>
             <div>
-              <CardTitle className="text-lg">{subscription?.plan?.name}</CardTitle>
-              <CardDescription>{subscription?.plan?.description}</CardDescription>
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                {subscription?.plan?.name}
+              </CardTitle>
+              <CardDescription className="text-gray-600 text-base">
+                {subscription?.plan?.description}
+              </CardDescription>
             </div>
           </div>
-          {getStatusBadge(subscription?.status || '')}
+          <div className="transform group-hover:scale-105 transition-transform duration-300">
+            {getStatusBadge(subscription?.status || '')}
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">Billing Amount</span>
+      <CardContent className="space-y-6 relative">
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Billing Amount Card */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 group/card">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
+                <DollarSign className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-semibold text-gray-700">Billing Amount</span>
             </div>
-            <p className="text-xl font-bold text-blue-600">
-              {subscription?.is_trial ? 'Free Trial' : `$${(parseFloat(subscription?.plan?.formatted_price?.replace('$', '') || '0').toFixed(2))}`}
-              {/* {subscription?.is_trial ? 'Free Trial' : `$${(parseFloat(subscription?.plan?.formatted_price?.replace('$', '') || '0') * (userCount || 1)).toFixed(2)}`} */}
-
-              <span className="text-sm text-gray-600 ml-1">
-                {subscription?.is_trial ? '' : `for ${subscription?.user_count} user${userCount !== 1 ? 's' : ''}`}
-              </span>
-            </p>
+            <div className="space-y-2">
+              <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+                {subscription?.is_trial ? 'Free Trial' : `$${(parseFloat(subscription?.plan?.formatted_price?.replace('$', '') || '0').toFixed(2))}`}
+              </p>
+              {!subscription?.is_trial && (
+                <p className="text-sm text-gray-600 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  for {subscription?.user_count} user{userCount !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">Next Billing</span>
+          {/* Next Billing Card */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 group/card">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-semibold text-gray-700">
+                {(subscription?.cancel_at_period_end || subscription?.cancel_at) ? 'Access Ends' : 'Next Billing'}
+              </span>
             </div>
-            <p className="text-lg">
-              {subscription?.is_trial 
-                ? `${formatDate(subscription?.trial_end_date || '')}`
-                : `${formatDate(subscription?.current_period_end || '')}`}
-            </p>
-            {subscription?.days_until_renewal !== undefined && (
-              <p className="text-sm text-gray-600">
-                ({subscription.is_trial ? subscription?.trial_days_remaining : subscription.days_until_renewal} days until renewal)
+            <div className="space-y-2">
+              <p className="text-xl font-bold text-gray-900">
+                {subscription?.is_trial 
+                  ? `${formatDate(subscription?.trial_end_date || '')}`
+                  : `${formatDate(subscription?.current_period_end || '')}`}
               </p>
-            )}
+              {subscription?.days_until_renewal !== undefined && (
+                <p className="text-sm text-gray-600 flex items-center gap-2">
+                  <Timer className="h-4 w-4" />
+                  {subscription.is_trial ? subscription?.trial_days_remaining : subscription.days_until_renewal} days remaining
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        {subscription?.cancel_at_period_end && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Subscription will cancel on {formatDate(subscription.current_period_end || '')}.
+        {/* Cancellation Alert */}
+        {(subscription?.cancel_at_period_end || subscription?.cancel_at) && (
+          <Alert className="flex items-center bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 shadow-lg px-4 py-3">
+            <div className="p-1 bg-gradient-to-r from-orange-400 to-red-400 rounded-full mr-3 flex-shrink-0 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-white" />
+            </div>
+            <AlertDescription className="text-orange-800 font-medium text-center w-full">
+              Your subscription will end on the date shown above. You will retain access to all features until then, but your plan will not renew.
             </AlertDescription>
           </Alert>
         )}
 
+        {/* Management Button */}
         {showManagement && (
-          <Button 
-            onClick={handleManageSubscription}
-            disabled={redirectingToPortal}
-            className="w-full flex items-center justify-center gap-2"
-            variant="outline"
-          >
-            {redirectingToPortal ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                Loading...
-              </>
-            ) : (
-              <>
-                <CreditCard className="h-4 w-4" />
-                Manage Subscription
-                <ExternalLink className="h-3 w-3" />
-              </>
-            )}
-          </Button>
+          <div className="pt-4">
+            <Button 
+              onClick={handleManageSubscription}
+              disabled={redirectingToPortal}
+              className="w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 group/btn"
+            >
+              {redirectingToPortal ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5 mr-3 group-hover/btn:scale-110 transition-transform duration-300" />
+                  Manage Subscription
+                  <ExternalLink className="h-4 w-4 ml-3 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                </>
+              )}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
   );
 };
 
-export default SubscriptionStatusComponent; 
+export default SubscriptionStatusComponent;

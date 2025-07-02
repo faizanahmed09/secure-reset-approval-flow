@@ -831,7 +831,7 @@ const ApplicationUsers = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
         <BeautifulLoader />
       </div>
     );
@@ -839,7 +839,7 @@ const ApplicationUsers = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
@@ -851,574 +851,581 @@ const ApplicationUsers = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
       <Header />
       <main className="flex-1 container py-12">
-        <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Link href="/admin-portal">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Portal
-            </Button>
-          </Link>
-          {isAdmin && (
-            <Link href="/subscription">
-              <Button variant="outline" size="sm">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Subscription
-              </Button>
-            </Link>
-          )}
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Users className="h-6 w-6" />
-              Application Users
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-foreground">
-          <Building2 className="h-4 w-4" />
-          {isEditingOrg ? (
-            <div className="flex items-center gap-2">
-              <Input
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                className="h-8"
-                disabled={savingOrg}
-              />
-              <Button size="sm" onClick={handleSaveOrganization} disabled={savingOrg}>
-                {savingOrg ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Save className="h-4 w-4" />}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => { setIsEditingOrg(false); setOrgName(user?.organizations?.display_name || ''); }} disabled={savingOrg}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{user?.organizations?.display_name || 'Organization'}</span>
-              {isAdmin && (
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingOrg(true)}>
-                  <Edit className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Seat Information Card */}
-      {isAdmin && seatInfo && subscription && !isSubscriptionExpired(subscription) && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Subscription Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{seatInfo.subscribedSeats}</div>
-                <div className="text-sm text-muted-foreground">Subscribed Seats</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{seatInfo.activeUsers}</div>
-                <div className="text-sm text-muted-foreground">Billable Users</div>
-                <div className="text-xs text-muted-foreground">(Admin + Verifier)</div>
-              </div>
-              <div className="text-center">
-                <div className={`text-2xl font-bold ${seatInfo.availableSeats > 0 ? 'text-orange-600' : 'text-red-600'}`}>
-                  {seatInfo.availableSeats}
+        <div className="max-w-7xl mx-auto">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <Link href="/admin-portal">
+                    <Button variant="outline" size="sm">
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Portal
+                    </Button>
+                  </Link>
+                  {isAdmin && (
+                    <Link href="/subscription">
+                      <Button variant="outline" size="sm">
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Subscription
+                      </Button>
+                    </Link>
+                  )}
+                  <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                      <Users className="h-6 w-6" />
+                      Application Users
+                    </h1>
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">Available Seats</div>
-              </div>
-              <div className="text-center">
-                <Badge variant={getSeatStatus(seatInfo) === 'available' ? 'secondary' : getSeatStatus(seatInfo) === 'full' ? 'destructive' : 'outline'}>
-                  {getSeatStatus(seatInfo) === 'available' ? 'Can Add Users' : 
-                   getSeatStatus(seatInfo) === 'full' ? 'At Seat Limit' : 'Over Limit'}
-                </Badge>
-                <div className="text-sm text-muted-foreground mt-1">{formatSeatInfo(seatInfo)}</div>
-              </div>
-            </div>
-            {seatInfo.availableSeats > 0 && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-800">
-                  💡 You can add {seatInfo.availableSeats} more admin/verifier user{seatInfo.availableSeats === 1 ? '' : 's'} without additional charge.
-                </p>
-                <p className="text-xs text-green-700 mt-1">
-                  Basic users are always free and don't count towards your subscription.
-                </p>
-              </div>
-            )}
-            {seatInfo.availableSeats === 0 && (
-              <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
-                <p className="text-sm text-orange-800">
-                  ⚠️ At seat limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
-                </p>
-                <p className="text-xs text-orange-700 mt-1">
-                  Basic users are always free and don't count towards your subscription.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Canceled/Canceling Subscription Warning */}
-      {isAdmin && subscription && (subscription.status === 'canceled' || subscription.cancel_at_period_end) && (
-        <Card className={`mb-6 ${isSubscriptionExpired(subscription) ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}>
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${isSubscriptionExpired(subscription) ? 'text-red-800' : 'text-orange-800'}`}>
-              <CreditCard className="h-5 w-5" />
-              {isSubscriptionExpired(subscription) ? 'Subscription Expired' : 'Subscription Canceled'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {isSubscriptionExpired(subscription) ? (
-                <>
-                  <p className="text-red-700">
-                    Your subscription has expired. Please reactivate your subscription to continue adding admin/verifier users.
-                  </p>
-                  <div className="bg-red-100 p-3 rounded-md">
-                    <p className="text-sm text-red-800">
-                      {subscription.current_period_end ? (
-                        <><strong>Expired on:</strong> {new Date(subscription.current_period_end).toLocaleDateString()}</>
-                      ) : (
-                        <><strong>Status:</strong> Subscription was canceled and terminated.</>
-                      )}
-                    </p>
-                  </div>
-                </>
-              ) : subscription.cancel_at_period_end && subscription.status === 'active' ? (
-                <>
-                  <p className="text-orange-700">
-                    Your subscription is scheduled to cancel at the end of your billing period. You can continue adding users normally until then.
-                  </p>
-                  <div className="bg-orange-100 p-3 rounded-md">
-                    <p className="text-sm text-orange-800">
-                      <strong>Access expires:</strong> {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
-                    </p>
-                    <p className="text-sm text-orange-700 mt-1">
-                      After this date, you'll need to reactivate your subscription to continue adding admin/verifier users.
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-orange-700">
-                    Your subscription has been canceled but is still active until the end of your billing period. You can continue adding users normally.
-                  </p>
-                  <div className="bg-orange-100 p-3 rounded-md">
-                    <p className="text-sm text-orange-800">
-                      <strong>Access expires:</strong> {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
-                    </p>
-                    <p className="text-sm text-orange-700 mt-1">
-                      After this date, you'll need to reactivate your subscription to continue adding admin/verifier users.
-                    </p>
-                  </div>
-                </>
-              )}
-              <div className="flex gap-2">
-                <Link href="/subscription">
-                  <Button variant="default" size="sm">
-                    Reactivate Subscription
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Users List</CardTitle>
-              <CardDescription>
-                {isAdmin 
-                  ? "View and manage all users in your organization" 
-                  : "View users in your organization"
-                }
-              </CardDescription>
-            </div>
-            {isAdmin && (
-              <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-                <DialogTrigger asChild>
-                  <Button className="relative">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Add User
-                    {isSubscriptionExpired(subscription) ? (
-                      <Badge variant="destructive" className="ml-2 h-5 text-xs">
-                        subscription required
-                      </Badge>
-                    ) : seatInfo && (
-                      <Badge 
-                        variant={seatInfo.availableSeats > 0 ? "secondary" : "destructive"} 
-                        className="ml-2 h-5 text-xs"
-                      >
-                        {seatInfo.availableSeats > 0 
-                          ? `${seatInfo.availableSeats} free seats` 
-                          : 'upgrade needed'
-                        }
-                      </Badge>
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Add New User</DialogTitle>
-                    <DialogDescription>
-                      Search for Azure AD users and add them to your organization
-                    </DialogDescription>
-                    {isSubscriptionExpired(subscription) ? (
-                      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                        <div className="text-sm text-red-800">
-                          ⚠️ Your subscription has expired. You can only add basic users.
-                        </div>
-                        <div className="text-xs text-red-700 mt-1">
-                          Reactivate your subscription to add admin/verifier users.
-                        </div>
-                      </div>
-                    ) : subscription?.cancel_at_period_end && subscription.status === 'active' ? (
-                      <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
-                        <div className="text-sm text-orange-800">
-                          🟡 Your subscription is scheduled to cancel on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'end of period'}.
-                        </div>
-                        <div className="text-xs text-orange-700 mt-1">
-                          You can continue adding users normally until the cancellation date.
-                        </div>
-                      </div>
-                    ) : subscription?.status === 'canceled' && subscription?.current_period_end ? (
-                      <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
-                        <div className="text-sm text-orange-800">
-                          🟡 Your subscription is canceled but still active until {new Date(subscription.current_period_end).toLocaleDateString()}.
-                        </div>
-                        <div className="text-xs text-orange-700 mt-1">
-                          You can continue adding users normally until the expiration date.
-                        </div>
-                      </div>
-                    ) : seatInfo && (
-                      <div className="mt-2 text-sm space-y-1">
-                        <div>
-                          {seatInfo.availableSeats > 0 ? (
-                            <span className="text-green-600">
-                              ✅ {seatInfo.availableSeats} seat{seatInfo.availableSeats === 1 ? '' : 's'} available for admin/verifier users
-                            </span>
-                          ) : (
-                            <span className="text-orange-600">
-                              ⚠️ At seat limit - adding admin/verifier users will upgrade subscription
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          💡 Basic users are always free and don't require seats
-                        </div>
-                      </div>
-                    )}
-                  </DialogHeader>
-                  
-                  <div className="space-y-4">
-                    {/* Authentication Error Alert */}
-                    {authError && (
-                      <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-yellow-800">Authentication Required</p>
-                          <p className="text-sm text-yellow-700">You need to re-authenticate to search users.</p>
-                        </div>
-                        <Button size="sm" onClick={handleReAuthenticate}>
-                          Re-authenticate
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Search Input */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <div className="flex items-center gap-2 text-foreground">
+                  <Building2 className="h-4 w-4" />
+                  {isEditingOrg ? (
+                    <div className="flex items-center gap-2">
                       <Input
-                        placeholder="Search Azure AD users (type 2+ characters)..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                        disabled={authError}
+                        value={orgName}
+                        onChange={(e) => setOrgName(e.target.value)}
+                        className="h-8"
+                        disabled={savingOrg}
                       />
-                      {searchLoading && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        </div>
+                      <Button size="sm" onClick={handleSaveOrganization} disabled={savingOrg}>
+                        {savingOrg ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Save className="h-4 w-4" />}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setIsEditingOrg(false); setOrgName(user?.organizations?.display_name || ''); }} disabled={savingOrg}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{user?.organizations?.display_name || 'Organization'}</span>
+                      {isAdmin && (
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsEditingOrg(true)}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
                       )}
                     </div>
+                  )}
+                </div>
+              </div>
 
-                    {/* Role Selection */}
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Default Role for New User</label>
-                      <Select value={selectedRole} onValueChange={(value: 'admin' | 'verifier' | 'basic') => setSelectedRole(value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="basic">Basic</SelectItem>
-                          <SelectItem value="verifier">Verifier</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
+              {/* Seat Information Card */}
+              {isAdmin && seatInfo && subscription && !isSubscriptionExpired(subscription) && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Subscription Overview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{seatInfo.subscribedSeats}</div>
+                        <div className="text-sm text-muted-foreground">Subscribed Seats</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{seatInfo.activeUsers}</div>
+                        <div className="text-sm text-muted-foreground">Billable Users</div>
+                        <div className="text-xs text-muted-foreground">(Admin + Verifier)</div>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold ${seatInfo.availableSeats > 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                          {seatInfo.availableSeats}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Available Seats</div>
+                      </div>
+                      <div className="text-center">
+                        <Badge variant={getSeatStatus(seatInfo) === 'available' ? 'secondary' : getSeatStatus(seatInfo) === 'full' ? 'destructive' : 'outline'}>
+                          {getSeatStatus(seatInfo) === 'available' ? 'Can Add Users' : 
+                           getSeatStatus(seatInfo) === 'full' ? 'At Seat Limit' : 'Over Limit'}
+                        </Badge>
+                        <div className="text-sm text-muted-foreground mt-1">{formatSeatInfo(seatInfo)}</div>
+                      </div>
                     </div>
-
-                    {/* Search Results */}
-                    {searchQuery.length >= 2 && !authError && (
-                      <div className="border rounded-lg max-h-96 overflow-y-auto">
-                        {searchLoading ? (
-                          <div className="p-4 text-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                            <p className="text-sm text-muted-foreground mt-2">Searching...</p>
-                          </div>
-                        ) : azureUsers.length > 0 ? (
-                          <div className="divide-y">
-                            {azureUsers.map((azureUser) => {
-                              // Check if user already exists
-                              const userExists = users.some(u => u.email === azureUser.userPrincipalName);
-                              
-                              return (
-                                <div key={azureUser.id} className="p-4 hover:bg-muted/50">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="font-medium">{azureUser.displayName}</p>
-                                      <p className="text-sm text-muted-foreground">{azureUser.userPrincipalName}</p>
-                                      {azureUser.mail && azureUser.mail !== azureUser.userPrincipalName && (
-                                        <p className="text-sm text-blue-600">{azureUser.mail}</p>
-                                      )}
-                                      {userExists && (
-                                        <Badge variant="outline" className="text-xs mt-1">
-                                          Already exists
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleCreateUser(azureUser)}
-                                      disabled={creatingUser || userExists}
-                                    >
-                                      {creatingUser ? (
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                      ) : userExists ? (
-                                        'Exists'
-                                      ) : (
-                                        <>
-                                          <Plus className="h-4 w-4 mr-1" />
-                                          Add
-                                        </>
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : searchQuery.length >= 2 ? (
-                          <div className="p-4 text-center text-muted-foreground">
-                            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p>No users found matching "{searchQuery}"</p>
-                          </div>
-                        ) : null}
+                    {seatInfo.availableSeats > 0 && (
+                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <p className="text-sm text-green-800">
+                          💡 You can add {seatInfo.availableSeats} more admin/verifier user{seatInfo.availableSeats === 1 ? '' : 's'} without additional charge.
+                        </p>
+                        <p className="text-xs text-green-700 mt-1">
+                          Basic users are always free and don't count towards your subscription.
+                        </p>
                       </div>
                     )}
-
-                    {searchQuery.length < 2 && searchQuery.length > 0 && (
-                      <div className="text-center text-muted-foreground p-4">
-                        <p>Type at least 2 characters to search</p>
+                    {seatInfo.availableSeats === 0 && (
+                      <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                        <p className="text-sm text-orange-800">
+                          ⚠️ At seat limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
+                        </p>
+                        <p className="text-xs text-orange-700 mt-1">
+                          Basic users are always free and don't count towards your subscription.
+                        </p>
                       </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Canceled/Canceling Subscription Warning */}
+              {isAdmin && subscription && (subscription.status === 'canceled' || subscription.cancel_at_period_end) && (
+                <Card className={`mb-6 ${isSubscriptionExpired(subscription) ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}>
+                  <CardHeader>
+                    <CardTitle className={`flex items-center gap-2 ${isSubscriptionExpired(subscription) ? 'text-red-800' : 'text-orange-800'}`}>
+                      <CreditCard className="h-5 w-5" />
+                      {isSubscriptionExpired(subscription) ? 'Subscription Expired' : 'Subscription Canceled'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {isSubscriptionExpired(subscription) ? (
+                        <>
+                          <p className="text-red-700">
+                            Your subscription has expired. Please reactivate your subscription to continue adding admin/verifier users.
+                          </p>
+                          <div className="bg-red-100 p-3 rounded-md">
+                            <p className="text-sm text-red-800">
+                              {subscription.current_period_end ? (
+                                <><strong>Expired on:</strong> {new Date(subscription.current_period_end).toLocaleDateString()}</>
+                              ) : (
+                                <><strong>Status:</strong> Subscription was canceled and terminated.</>
+                              )}
+                            </p>
+                          </div>
+                        </>
+                      ) : subscription.cancel_at_period_end && subscription.status === 'active' ? (
+                        <>
+                          <p className="text-orange-700">
+                            Your subscription is scheduled to cancel at the end of your billing period. You can continue adding users normally until then.
+                          </p>
+                          <div className="bg-orange-100 p-3 rounded-md">
+                            <p className="text-sm text-orange-800">
+                              <strong>Access expires:</strong> {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
+                            </p>
+                            <p className="text-sm text-orange-700 mt-1">
+                              After this date, you'll need to reactivate your subscription to continue adding admin/verifier users.
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-orange-700">
+                            Your subscription has been canceled but is still active until the end of your billing period. You can continue adding users normally.
+                          </p>
+                          <div className="bg-orange-100 p-3 rounded-md">
+                            <p className="text-sm text-orange-800">
+                              <strong>Access expires:</strong> {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
+                            </p>
+                            <p className="text-sm text-orange-700 mt-1">
+                              After this date, you'll need to reactivate your subscription to continue adding admin/verifier users.
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex gap-2">
+                        <Link href="/subscription">
+                          <Button variant="default" size="sm">
+                            Reactivate Subscription
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Users List</CardTitle>
+                      <CardDescription>
+                        {isAdmin 
+                          ? "View and manage all users in your organization" 
+                          : "View users in your organization"
+                        }
+                      </CardDescription>
+                    </div>
+                    {isAdmin && (
+                      <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+                        <DialogTrigger asChild>
+                          <Button className="relative">
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Add User
+                            {isSubscriptionExpired(subscription) ? (
+                              <Badge variant="destructive" className="ml-2 h-5 text-xs">
+                                subscription required
+                              </Badge>
+                            ) : seatInfo && (
+                              <Badge 
+                                variant={seatInfo.availableSeats > 0 ? "secondary" : "destructive"} 
+                                className="ml-2 h-5 text-xs"
+                              >
+                                {seatInfo.availableSeats > 0 
+                                  ? `${seatInfo.availableSeats} free seats` 
+                                  : 'upgrade needed'
+                                }
+                              </Badge>
+                            )}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                          <DialogHeader>
+                            <DialogTitle>Add New User</DialogTitle>
+                            <DialogDescription>
+                              Search for Azure AD users and add them to your organization
+                            </DialogDescription>
+                            {isSubscriptionExpired(subscription) ? (
+                              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                                <div className="text-sm text-red-800">
+                                  ⚠️ Your subscription has expired. You can only add basic users.
+                                </div>
+                                <div className="text-xs text-red-700 mt-1">
+                                  Reactivate your subscription to add admin/verifier users.
+                                </div>
+                              </div>
+                            ) : subscription?.cancel_at_period_end && subscription.status === 'active' ? (
+                              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                                <div className="text-sm text-orange-800">
+                                  🟡 Your subscription is scheduled to cancel on {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'end of period'}.
+                                </div>
+                                <div className="text-xs text-orange-700 mt-1">
+                                  You can continue adding users normally until the cancellation date.
+                                </div>
+                              </div>
+                            ) : subscription?.status === 'canceled' && subscription?.current_period_end ? (
+                              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                                <div className="text-sm text-orange-800">
+                                  🟡 Your subscription is canceled but still active until {new Date(subscription.current_period_end).toLocaleDateString()}.
+                                </div>
+                                <div className="text-xs text-orange-700 mt-1">
+                                  You can continue adding users normally until the expiration date.
+                                </div>
+                              </div>
+                            ) : seatInfo && (
+                              <div className="mt-2 text-sm space-y-1">
+                                <div>
+                                  {seatInfo.availableSeats > 0 ? (
+                                    <span className="text-green-600">
+                                      ✅ {seatInfo.availableSeats} seat{seatInfo.availableSeats === 1 ? '' : 's'} available for admin/verifier users
+                                    </span>
+                                  ) : (
+                                    <span className="text-orange-600">
+                                      ⚠️ At seat limit - adding admin/verifier users will upgrade subscription
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  💡 Basic users are always free and don't require seats
+                                </div>
+                              </div>
+                            )}
+                          </DialogHeader>
+                          
+                          <div className="space-y-4">
+                            {/* Authentication Error Alert */}
+                            {authError && (
+                              <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-yellow-800">Authentication Required</p>
+                                  <p className="text-sm text-yellow-700">You need to re-authenticate to search users.</p>
+                                </div>
+                                <Button size="sm" onClick={handleReAuthenticate}>
+                                  Re-authenticate
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Search Input */}
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                              <Input
+                                placeholder="Search Azure AD users (type 2+ characters)..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                                disabled={authError}
+                              />
+                              {searchLoading && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Role Selection */}
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">Default Role for New User</label>
+                              <Select value={selectedRole} onValueChange={(value: 'admin' | 'verifier' | 'basic') => setSelectedRole(value)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="basic">Basic</SelectItem>
+                                  <SelectItem value="verifier">Verifier</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Search Results */}
+                            {searchQuery.length >= 2 && !authError && (
+                              <div className="border rounded-lg max-h-96 overflow-y-auto">
+                                {searchLoading ? (
+                                  <div className="p-4 text-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                                    <p className="text-sm text-muted-foreground mt-2">Searching...</p>
+                                  </div>
+                                ) : azureUsers.length > 0 ? (
+                                  <div className="divide-y">
+                                    {azureUsers.map((azureUser) => {
+                                      // Check if user already exists
+                                      const userExists = users.some(u => u.email === azureUser.userPrincipalName);
+                                      
+                                      return (
+                                        <div key={azureUser.id} className="p-4 hover:bg-muted/50">
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <p className="font-medium">{azureUser.displayName}</p>
+                                              <p className="text-sm text-muted-foreground">{azureUser.userPrincipalName}</p>
+                                              {azureUser.mail && azureUser.mail !== azureUser.userPrincipalName && (
+                                                <p className="text-sm text-blue-600">{azureUser.mail}</p>
+                                              )}
+                                              {userExists && (
+                                                <Badge variant="outline" className="text-xs mt-1">
+                                                  Already exists
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            <Button
+                                              size="sm"
+                                              onClick={() => handleCreateUser(azureUser)}
+                                              disabled={creatingUser || userExists}
+                                            >
+                                              {creatingUser ? (
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                              ) : userExists ? (
+                                                'Exists'
+                                              ) : (
+                                                <>
+                                                  <Plus className="h-4 w-4 mr-1" />
+                                                  Add
+                                                </>
+                                              )}
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : searchQuery.length >= 2 ? (
+                                  <div className="p-4 text-center text-muted-foreground">
+                                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                    <p>No users found matching "{searchQuery}"</p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+
+                            {searchQuery.length < 2 && searchQuery.length > 0 && (
+                              <div className="text-center text-muted-foreground p-4">
+                                <p>Type at least 2 characters to search</p>
+                              </div>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     )}
                   </div>
-                </DialogContent>
-              </Dialog>
-            )}
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <BeautifulLoader />
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No users found</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Email</TableHead>
+                            {/* <TableHead>Tenant ID</TableHead> */}
+                            <TableHead>Organization</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Last Login</TableHead>
+                            {isAdmin && <TableHead>Actions</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {users.map((u) => (
+                            <TableRow key={u.id}>
+                              <TableCell className="font-medium">{u.email}</TableCell>
+                              {/* <TableCell className="font-mono text-sm">{u.tenant_id}</TableCell> */}
+                              <TableCell>{u.organizations?.display_name || 'N/A'}</TableCell>
+                              <TableCell>
+                                {editingUser?.id === u.id ? (
+                                  <Select
+                                    value={editingUser.role}
+                                    onValueChange={(value: 'admin' | 'verifier' | 'basic') =>
+                                      setEditingUser({ ...editingUser, role: value })
+                                    }
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="admin">Admin</SelectItem>
+                                      <SelectItem value="verifier">Verifier</SelectItem>
+                                      <SelectItem value="basic">Basic</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Badge variant={u.role === 'admin' ? 'default' : u.role === 'verifier' ? 'secondary' : 'outline'}>
+                                    {capitalizeRole(u.role)}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {editingUser?.id === u.id ? (
+                                  <Switch
+                                    checked={editingUser.is_active}
+                                    onCheckedChange={(checked) =>
+                                      setEditingUser({ ...editingUser, is_active: checked })
+                                    }
+                                  />
+                                ) : (
+                                  <Badge variant={u.is_active ? 'default' : 'destructive'}>
+                                    {u.is_active ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{formatDate(u.last_login_at)}</TableCell>
+                              {isAdmin && (
+                                <TableCell>
+                                  {editingUser?.id === u.id ? (
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                      >
+                                        <Save className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleCancelEdit}
+                                        disabled={saving}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <Button size="sm" variant="outline" onClick={() => handleEdit(u)}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Dialog open={!!userToDelete && userToDelete.id === u.id} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
+                                        <DialogTrigger asChild>
+                                          <Button size="sm" variant="destructive" onClick={() => setUserToDelete(u)}>
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                          <DialogHeader>
+                                            <DialogTitle>Are you sure?</DialogTitle>
+                                            <DialogDescription>
+                                              This action will permanently delete the user <span className="font-bold">{userToDelete?.email}</span>. This cannot be undone.
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          <DialogFooter>
+                                            <DialogClose asChild>
+                                              <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
+                                              {isDeleting ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : 'Delete'}
+                                            </Button>
+                                          </DialogFooter>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Upgrade Confirmation Dialog */}
+              <AlertDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Subscription Upgrade Required</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Adding this {selectedRole} user will exceed your current seat limit. Your subscription will be automatically upgraded.
+                    </AlertDialogDescription>
+                    {upgradeInfo && (
+                      <div className="bg-muted p-4 rounded-lg space-y-2 mt-3">
+                        <div className="flex justify-between">
+                          <span>Current seats:</span>
+                          <span>{upgradeInfo.currentSeats}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>New seats:</span>
+                          <span>{upgradeInfo.newSeats}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Current monthly cost:</span>
+                          <span>${upgradeInfo.currentMonthlyTotal}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>New monthly cost:</span>
+                          <span>${upgradeInfo.newMonthlyTotal}</span>
+                        </div>
+                        <div className="flex justify-between text-green-600 font-semibold">
+                          <span>Additional cost:</span>
+                          <span>+${upgradeInfo.additionalCost}/month</span>
+                        </div>
+                      </div>
+                    )}
+                    {upgradeInfo && (
+                      <div className="text-sm text-muted-foreground mt-3">
+                        You will be charged a prorated amount for the remainder of your current billing period.
+                      </div>
+                    )}
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleUpgradeCancel}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleUpgradeConfirm}
+                      disabled={creatingUser}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {creatingUser ? 'Upgrading...' : 'Upgrade & Add User'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <BeautifulLoader />
-            </div>
-          ) : users.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No users found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    {/* <TableHead>Tenant ID</TableHead> */}
-                    <TableHead>Organization</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    {isAdmin && <TableHead>Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.email}</TableCell>
-                      {/* <TableCell className="font-mono text-sm">{u.tenant_id}</TableCell> */}
-                      <TableCell>{u.organizations?.display_name || 'N/A'}</TableCell>
-                      <TableCell>
-                        {editingUser?.id === u.id ? (
-                          <Select
-                            value={editingUser.role}
-                            onValueChange={(value: 'admin' | 'verifier' | 'basic') =>
-                              setEditingUser({ ...editingUser, role: value })
-                            }
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="verifier">Verifier</SelectItem>
-                              <SelectItem value="basic">Basic</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant={u.role === 'admin' ? 'default' : u.role === 'verifier' ? 'secondary' : 'outline'}>
-                            {capitalizeRole(u.role)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingUser?.id === u.id ? (
-                          <Switch
-                            checked={editingUser.is_active}
-                            onCheckedChange={(checked) =>
-                              setEditingUser({ ...editingUser, is_active: checked })
-                            }
-                          />
-                        ) : (
-                          <Badge variant={u.is_active ? 'default' : 'destructive'}>
-                            {u.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{formatDate(u.last_login_at)}</TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          {editingUser?.id === u.id ? (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={handleSave}
-                                disabled={saving}
-                              >
-                                <Save className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleCancelEdit}
-                                disabled={saving}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleEdit(u)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Dialog open={!!userToDelete && userToDelete.id === u.id} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
-                                <DialogTrigger asChild>
-                                  <Button size="sm" variant="destructive" onClick={() => setUserToDelete(u)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Are you sure?</DialogTitle>
-                                    <DialogDescription>
-                                      This action will permanently delete the user <span className="font-bold">{userToDelete?.email}</span>. This cannot be undone.
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <DialogFooter>
-                                    <DialogClose asChild>
-                                      <Button variant="outline">Cancel</Button>
-                                    </DialogClose>
-                                    <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
-                                      {isDeleting ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : 'Delete'}
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Upgrade Confirmation Dialog */}
-      <AlertDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Subscription Upgrade Required</AlertDialogTitle>
-            <AlertDialogDescription>
-              Adding this {selectedRole} user will exceed your current seat limit. Your subscription will be automatically upgraded.
-            </AlertDialogDescription>
-            {upgradeInfo && (
-              <div className="bg-muted p-4 rounded-lg space-y-2 mt-3">
-                <div className="flex justify-between">
-                  <span>Current seats:</span>
-                  <span>{upgradeInfo.currentSeats}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>New seats:</span>
-                  <span>{upgradeInfo.newSeats}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Current monthly cost:</span>
-                  <span>${upgradeInfo.currentMonthlyTotal}</span>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <span>New monthly cost:</span>
-                  <span>${upgradeInfo.newMonthlyTotal}</span>
-                </div>
-                <div className="flex justify-between text-green-600 font-semibold">
-                  <span>Additional cost:</span>
-                  <span>+${upgradeInfo.additionalCost}/month</span>
-                </div>
-              </div>
-            )}
-            {upgradeInfo && (
-              <div className="text-sm text-muted-foreground mt-3">
-                You will be charged a prorated amount for the remainder of your current billing period.
-              </div>
-            )}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleUpgradeCancel}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleUpgradeConfirm}
-              disabled={creatingUser}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {creatingUser ? 'Upgrading...' : 'Upgrade & Add User'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
+        </div>
       </main>
       <Footer />
     </div>

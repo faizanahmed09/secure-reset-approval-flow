@@ -253,17 +253,16 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
       trial_start_date: subscription.status === 'trialing' ? getValidDate(subscription.trial_start) : null,
       trial_end_date: subscription.status === 'trialing' ? getValidDate(subscription.trial_end) : null,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      // NOTE: cancels_at field was removed in migration 20250130_remove_unused_subscription_fields.sql
-      // Only cancel_at_period_end is stored in DB and used by UI components
+      cancel_at: subscription.cancel_at ? timestampToISO(subscription.cancel_at) : null, // Store scheduled cancellation date
       updated_at: new Date().toISOString()
     }
 
     console.log('📤 Updating database with:', updateData)
     console.log('🗄️  Database field mapping:')
     console.log('  - Stripe cancel_at_period_end → DB cancel_at_period_end:', updateData.cancel_at_period_end)
+    console.log('  - Stripe cancel_at → DB cancel_at:', updateData.cancel_at)
     console.log('  - Plan name → DB plan_name:', updateData.plan_name)
     console.log('  - User count → DB user_count:', updateData.user_count)
-    console.log('  ⚠️  NOTE: Stripe cancel_at is NOT stored (cancels_at field was removed from DB)')
 
     const { error } = await supabaseClient
       .from('subscriptions')
@@ -441,8 +440,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
   }
   console.log('=== END CHECKOUT SESSION COMPLETED ===\n')
 }
-
-
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, supabaseClient: any) {
   console.log('=== INVOICE PAYMENT SUCCEEDED ===')
