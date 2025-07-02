@@ -58,7 +58,6 @@ export const loginRequest: RedirectRequest = {
   scopes: [
     // Microsoft Graph API scopes for admin operations
     'https://graph.microsoft.com/User.ReadWrite.All',
-    'https://graph.microsoft.com/User.Read',
     'https://graph.microsoft.com/Directory.ReadWrite.All',
     'https://graph.microsoft.com/Application.ReadWrite.All',
     'https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All',
