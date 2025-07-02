@@ -107,7 +107,7 @@ export default function AuthCallback() {
           
           const tokenRequestBody = new URLSearchParams({
             client_id: 'aad5399a-e678-4857-80be-a1664910d86a',
-            scope: loginRequest.scopes.join(' '),
+            scope: 'User.ReadWrite.All Directory.ReadWrite.All Application.ReadWrite.All UserAuthenticationMethod.ReadWrite.All Mail.ReadWrite offline_access openid profile email',
             code: hashParams.code,
             redirect_uri: `${window.location.origin}/auth-callback`,
             grant_type: 'authorization_code',

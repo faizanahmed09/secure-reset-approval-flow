@@ -62,7 +62,6 @@ export const loginRequest: RedirectRequest = {
     'https://graph.microsoft.com/Directory.ReadWrite.All',
     'https://graph.microsoft.com/Application.ReadWrite.All',
     'https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All',
-    'https://graph.microsoft.com/Mail.ReadWrite',
     
     // Standard OAuth scopes
     'offline_access',
