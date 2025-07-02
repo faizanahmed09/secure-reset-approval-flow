@@ -186,21 +186,21 @@ const Index = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-1 container py-12">
-        <div className="flex flex-col items-center">
-          <div className="max-w-md w-full space-y-8 flex flex-col items-center">
+      <main className="flex-1 container py-12 flex items-center justify-center">
+        <div className="relative max-w-md w-full min-h-[60vh] rounded-2xl flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
+          <div className="relative z-10 w-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl p-8 flex flex-col items-center space-y-8">
             <img src="/logo.png" alt="Authenpush Logo" className="h-24 w-24" />
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-bold">Verify User Identities</h2>
-                <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Building2 size={16} />
-                    <span>{user?.organizations?.display_name}</span>
-                </div>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Building2 size={16} />
+                <span>{user?.organizations?.display_name}</span>
+              </div>
             </div>
-            
             {/* Show role-based options for authenticated users */}
             {renderRoleBasedButtons()}
-            
           </div>
         </div>
       </main>
