@@ -44,7 +44,7 @@ export type FilterOptions = {
 
 const ChangeRequestsLog = () => {
   const { toast } = useToast();
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, isSessionExpired } = useAuth();
   const router = useRouter();
   const [filters, setFilters] = useState<FilterOptions>({
     search: "",
@@ -207,10 +207,20 @@ const ChangeRequestsLog = () => {
     );
   }
 
-  // Redirect to admin portal if not authenticated
-  if (!isAuthenticated || !user) {
-    router.push('/admin-portal');
-    return null;
+  // Handle redirect for unauthenticated users (but not when session expired modal is showing)
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !user) && !isSessionExpired) {
+      router.push('/');
+    }
+  }, [isLoading, isAuthenticated, user, isSessionExpired, router]);
+
+  // Show loader while redirecting to login if not authenticated (but not when session expired modal is showing)
+  if ((!isAuthenticated || !user) && !isSessionExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <BeautifulLoader />
+      </div>
+    );
   }
 
   // If no tenant ID available, show error

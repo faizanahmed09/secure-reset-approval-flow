@@ -6,6 +6,7 @@ import { jwtDecode } from 'jwt-decode'
 import { loginRequest } from '@/userAuthConfig'
 import { tokenInterceptor } from '@/utils/tokenInterceptor'
 import { useToast } from '@/hooks/use-toast'
+import { SessionExpiredModal } from '@/components/SessionExpiredModal'
 
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co"
 
@@ -41,12 +42,15 @@ interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   needsOrganizationSetup: boolean
+  mfaSetupStatus: 'unknown' | 'success' | 'failed' | 'missing_service_principal'
+  isSessionExpired: boolean
   refreshUser: () => Promise<void>
   updateUser: (updatedUser: User) => void
   markOrganizationSetupCompleted: () => void
   handleLoginRedirect: (instance: IPublicClientApplication) => Promise<void>
   handleLogout: (instance: IPublicClientApplication) => Promise<void>
   processUserFromToken: (idToken: string, accessToken?: string) => Promise<User | null>
+  handleSessionExpiredLogin: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -95,6 +99,8 @@ const checkNeedsOrganizationSetup = (user: User | null): boolean => {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [mfaSetupStatus, setMfaSetupStatus] = useState<'unknown' | 'success' | 'failed' | 'missing_service_principal'>('unknown')
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
   const { toast } = useToast()
 
   // Calculate if user needs organization setup
@@ -156,6 +162,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('currentUser', JSON.stringify(result.user));
         window.sessionStorage.setItem('userProcessed', 'true');
+        // Store MFA setup status
+        if (result.mfaSetupStatus) {
+          console.log('Storing MFA setup status:', result.mfaSetupStatus);
+          window.sessionStorage.setItem('mfaSetupStatus', result.mfaSetupStatus);
+        } else {
+          console.warn('No mfaSetupStatus in response:', result);
+        }
+      }
+
+      // Update MFA setup status in state
+      if (result.mfaSetupStatus) {
+        console.log('Setting MFA setup status in state:', result.mfaSetupStatus);
+        setMfaSetupStatus(result.mfaSetupStatus);
+      } else {
+        console.warn('No mfaSetupStatus to set in state');
       }
 
       return result.user;
@@ -175,6 +196,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       const idToken = window.sessionStorage.getItem('idToken');
       const currentUser = window.sessionStorage.getItem('currentUser');
+      const storedMfaStatus = window.sessionStorage.getItem('mfaSetupStatus');
       
       if (!idToken || !currentUser) {
         setUser(null);
@@ -185,6 +207,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Parse stored user
       const parsedUser = JSON.parse(currentUser);
       setUser(parsedUser);
+      
+      // Load MFA setup status
+      if (storedMfaStatus) {
+        console.log('Loading MFA setup status from sessionStorage:', storedMfaStatus);
+        setMfaSetupStatus(storedMfaStatus as 'unknown' | 'success' | 'failed' | 'missing_service_principal');
+      } else {
+        console.log('No MFA setup status found in sessionStorage');
+      }
     } catch (error) {
       console.error('Error fetching user:', error);
       setUser(null);
@@ -207,46 +237,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const validateTokens = async () => {
       try {
         const isValid = await tokenInterceptor.validateAuthenticationState();
+        
         if (!isValid) {
-          console.log('Token validation failed, clearing user state');
+          console.log('Token validation failed, showing session expired modal');
           
-          // Show session expired toast
-          toast({
-            title: 'Session Expired',
-            description: 'Your session has expired. Redirecting to login...',
-            variant: 'destructive',
-          });
-          
+          // Clear user state and show session expired modal
           setUser(null);
-          
-          // Redirect to login after a short delay
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 2000);
+          setIsSessionExpired(true);
         }
       } catch (error) {
         console.error('Error validating tokens:', error);
         
-        // Show session expired toast for errors too
-        toast({
-          title: 'Session Expired',
-          description: 'Your session has expired. Redirecting to login...',
-          variant: 'destructive',
-        });
-        
+        // Clear user state and show session expired modal for errors too
         setUser(null);
-        
-        // Redirect to login after a short delay
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 2000);
+        setIsSessionExpired(true);
       }
     };
 
     validateTokens();
 
-    // Set up periodic token validation (every 5 minutes)
-    const validationInterval = setInterval(validateTokens, 5 * 60 * 1000);
+    // Set up periodic token validation (every 15 minutes)
+    const validationInterval = setInterval(validateTokens, 15 * 60 * 1000);
 
     return () => {
       clearInterval(validationInterval);
@@ -310,11 +321,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         window.sessionStorage.removeItem('currentUser');
         window.sessionStorage.removeItem('userProcessed');
         window.sessionStorage.removeItem('mfaSecretChecked');
+        window.sessionStorage.removeItem('mfaSetupStatus');
         window.sessionStorage.removeItem('organizationSetupCompleted');
         window.sessionStorage.removeItem('msalInitialized'); // Clear MSAL initialization status
       }
       
       setUser(null);
+      setMfaSetupStatus('unknown');
       
       // Clear active account
       instance.setActiveAccount(null);
@@ -332,23 +345,57 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(updatedUser);
   }, []);
 
+  const handleSessionExpiredLogin = useCallback(() => {
+    setIsSessionExpired(false);
+    
+    // Clear only authentication-related session data (not all sessionStorage)
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('idToken');
+      window.sessionStorage.removeItem('accessToken');
+      window.sessionStorage.removeItem('currentUser');
+      window.sessionStorage.removeItem('userProcessed');
+      window.sessionStorage.removeItem('mfaSecretChecked');
+      window.sessionStorage.removeItem('mfaSetupStatus');
+      window.sessionStorage.removeItem('organizationSetupCompleted');
+    }
+    
+    // Small delay to let React finish state updates before navigating
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }, 500);
+  }, []);
+
+
+
   return (
-    <AuthContext.Provider
-      value={{
-        refreshUser,
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        needsOrganizationSetup,
-        updateUser,
-        markOrganizationSetupCompleted,
-        handleLoginRedirect,
-        handleLogout,
-        processUserFromToken,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <>
+      <AuthContext.Provider
+        value={{
+          refreshUser,
+          user,
+          isLoading,
+          isAuthenticated: !!user,
+          needsOrganizationSetup,
+          mfaSetupStatus,
+          isSessionExpired,
+          updateUser,
+          markOrganizationSetupCompleted,
+          handleLoginRedirect,
+          handleLogout,
+          processUserFromToken,
+          handleSessionExpiredLogin,
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+      
+      <SessionExpiredModal 
+        isOpen={isSessionExpired}
+        onLoginAgain={handleSessionExpiredLogin}
+      />
+    </>
   )
 }
 

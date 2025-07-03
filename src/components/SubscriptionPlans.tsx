@@ -239,7 +239,7 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
                     <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent mb-1">
                       {plan.formatted_price}
                     </div>
-                    <div className="text-gray-600 text-base mb-2">per month</div>
+                    <div className="text-gray-600 text-base mb-2">per user per month</div>
                     
                     <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-100">
                       <div className="flex items-center justify-center gap-2 mb-1">

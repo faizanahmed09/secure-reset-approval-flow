@@ -277,6 +277,50 @@ const ApplicationUsers = () => {
     try {
       setSaving(true);
       
+      // Find the current user data
+      const currentUser = users.find(user => user.id === editingUser.id);
+      if (!currentUser) {
+        toast({
+          title: 'Error',
+          description: 'User not found',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Check if this is a role upgrade from basic to admin/verifier
+      const isUpgradingToBillable = 
+        currentUser.role === 'basic' && 
+        (editingUser.role === 'admin' || editingUser.role === 'verifier');
+
+      // Validate seat limits for role upgrades (skip validation during trial)
+      if (isUpgradingToBillable && subscription?.plan_name !== 'TRIAL') {
+        // Check if subscription is canceled AND has expired
+        if (subscription && subscription.status === 'canceled') {
+          const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end) : null;
+          const now = new Date();
+          
+          if (!currentPeriodEnd || now > currentPeriodEnd) {
+            toast({
+              title: 'Subscription Expired',
+              description: 'Your subscription has expired. Please reactivate your subscription to upgrade users to admin/verifier roles.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
+
+        // Check seat availability
+        if (seatInfo && seatInfo.availableSeats <= 0) {
+          toast({
+            title: 'Seat Limit Reached',
+            description: `Cannot upgrade user to ${editingUser.role}. You have ${seatInfo.subscribedSeats} subscribed seats and ${seatInfo.activeUsers} billable users. Please upgrade your subscription to add more admin/verifier users.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      
       const updatedUser = await updateUser(editingUser.id, {
         is_active: editingUser.is_active,
         role: editingUser.role,
@@ -288,6 +332,16 @@ const ApplicationUsers = () => {
           ? { ...user, is_active: editingUser.is_active, role: editingUser.role }
           : user
       ));
+
+      // If the role change affects billing (basic <-> admin/verifier), refresh billing count and seat info
+      const isDowngradingFromBillable = 
+        (currentUser.role === 'admin' || currentUser.role === 'verifier') && 
+        editingUser.role === 'basic';
+
+      if (isUpgradingToBillable || isDowngradingFromBillable) {
+        // Refresh billing user count and recalculate seat info
+        await fetchBillingUserCount();
+      }
 
       setEditingUser(null);
       toast({
@@ -448,8 +502,8 @@ const ApplicationUsers = () => {
       return;
     }
 
-    // Check if this is a billable user (admin/verifier)
-    if (selectedRole === 'admin' || selectedRole === 'verifier') {
+    // Check if this is a billable user (admin/verifier) - skip validation during trial
+    if ((selectedRole === 'admin' || selectedRole === 'verifier') && subscription?.plan_name !== 'TRIAL') {
       // Check if subscription is canceled AND has expired
       if (subscription && subscription.status === 'canceled') {
         // Check if the subscription has actually expired
@@ -512,8 +566,8 @@ const ApplicationUsers = () => {
     try {
       setCreatingUser(true);
       
-      // Check seat availability for admin/verifier users and handle automatic upgrades
-      if (subscription && seatInfo && (selectedRole === 'admin' || selectedRole === 'verifier')) {
+      // Check seat availability for admin/verifier users and handle automatic upgrades (skip during trial)
+      if (subscription && subscription.plan_name !== 'TRIAL' && seatInfo && (selectedRole === 'admin' || selectedRole === 'verifier')) {
         console.log('🔄 Checking seat availability and handling upgrades...');
         
         const seatResult = await seatManagerAddUser(
@@ -747,6 +801,17 @@ const ApplicationUsers = () => {
   const isSubscriptionExpired = (subscription: any): boolean => {
     if (!subscription) return true;
     
+    // Case 0: Trial subscriptions are never considered expired during trial period
+    if (subscription.plan_name === 'TRIAL') {
+      // Check if trial has actually expired
+      if (subscription.trial_end_date) {
+        const trialEndDate = new Date(subscription.trial_end_date);
+        const now = new Date();
+        return now > trialEndDate; // Only expired if past trial end date
+      }
+      return false; // If no trial end date, assume trial is still active
+    }
+    
     // Case 1: Cancel immediately - status is "canceled" and no period end date
     if (subscription.status === 'canceled' && !subscription.current_period_end) {
       return true; // Access blocked immediately
@@ -912,8 +977,63 @@ const ApplicationUsers = () => {
                 </div>
               </div>
 
+              {/* Trial Information Card */}
+              {isAdmin && subscription && subscription.plan_name === 'TRIAL' && (
+                <Card className="mb-6 border-blue-200 bg-blue-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-800">
+                      <CreditCard className="h-5 w-5" />
+                      Free Trial Active
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">Unlimited</div>
+                        <div className="text-sm text-muted-foreground">Users During Trial</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{billingUserCount}</div>
+                        <div className="text-sm text-muted-foreground">Current Billable Users</div>
+                        <div className="text-xs text-muted-foreground">(Admin + Verifier)</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {subscription.trial_days_remaining || 0}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Days Remaining</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 p-4 bg-blue-100 border border-blue-200 rounded-md">
+                      <div className="space-y-2">
+                        <p className="text-sm text-blue-800 font-medium">
+                          🎉 During your free trial, you can add unlimited admin, verifier, and basic users!
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          Trial ends on: {subscription.trial_end_date ? new Date(subscription.trial_end_date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          }) : 'Unknown'}
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          After trial expiration, you'll need {billingUserCount} paid seat{billingUserCount !== 1 ? 's' : ''} to keep your current admin/verifier users active.
+                        </p>
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-blue-200">
+                        <Link href="/subscription">
+                          <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            Subscribe Now
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Seat Information Card */}
-              {isAdmin && seatInfo && subscription && !isSubscriptionExpired(subscription) && (
+              {isAdmin && seatInfo && subscription && subscription.plan_name !== 'TRIAL' && !isSubscriptionExpired(subscription) && (
                 <Card className="mb-6">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1059,6 +1179,10 @@ const ApplicationUsers = () => {
                               <Badge variant="destructive" className="ml-2 h-5 text-xs">
                                 subscription required
                               </Badge>
+                            ) : subscription?.plan_name === 'TRIAL' ? (
+                              <Badge variant="default" className="ml-2 h-5 text-xs bg-blue-600">
+                                unlimited trial
+                              </Badge>
                             ) : seatInfo && (
                               <Badge 
                                 variant={seatInfo.availableSeats > 0 ? "secondary" : "destructive"} 
@@ -1078,7 +1202,16 @@ const ApplicationUsers = () => {
                             <DialogDescription>
                               Search for Azure AD users and add them to your organization
                             </DialogDescription>
-                            {isSubscriptionExpired(subscription) ? (
+                            {subscription?.plan_name === 'TRIAL' ? (
+                              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <div className="text-sm text-blue-800">
+                                  🎉 Free Trial Active: Add unlimited admin, verifier, and basic users!
+                                </div>
+                                <div className="text-xs text-blue-700 mt-1">
+                                  Trial expires in {subscription.trial_days_remaining || 0} days. Subscribe to continue with unlimited access.
+                                </div>
+                              </div>
+                            ) : isSubscriptionExpired(subscription) ? (
                               <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
                                 <div className="text-sm text-red-800">
                                   ⚠️ Your subscription has expired. You can only add basic users.

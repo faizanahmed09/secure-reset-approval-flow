@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sparkles, Shield, Zap, Crown, Star } from 'lucide-react';
+import { ArrowLeft, Sparkles, Star } from 'lucide-react';
 import Link from 'next/link';
 import SubscriptionStatusComponent from '@/components/SubscriptionStatus';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
@@ -12,11 +11,20 @@ import { BeautifulLoader } from '@/app/loader';
 import { getSubscriptionStatus, SubscriptionStatus } from '@/services/subscriptionService';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { useRouter } from 'next/navigation';
 
 const SubscriptionPage = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [subStatusLoading, setSubStatusLoading] = useState(true);
+
+  // Handle redirect for unauthenticated users
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -41,28 +49,11 @@ const SubscriptionPage = () => {
     );
   }
 
+  // Show loader while redirecting to login if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-pink-50 to-orange-50">
-        <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <Shield className="h-8 w-8 text-red-600" />
-            </div>
-            <CardTitle className="text-2xl text-gray-900">Access Denied</CardTitle>
-            <CardDescription className="text-gray-600">
-              Please log in to access subscription management.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={() => window.location.href = '/'}
-              className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              Go to Login
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
+        <BeautifulLoader />
       </div>
     );
   }

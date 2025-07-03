@@ -20,9 +20,41 @@ function createOrganizationName(domain: string): string {
   return baseName.charAt(0).toUpperCase() + baseName.slice(1);
 }
 
+// Helper function to check if MFA service principal exists in tenant
+async function checkMfaServicePrincipalExists(accessToken: string): Promise<boolean> {
+  try {
+    const mfaAppId = Deno.env.get("MFA_CLIENT_ID") || "";
+    
+    const spResponse = await fetch(`https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '${mfaAppId}'`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      }
+    });
+    
+    if (!spResponse.ok) {
+      console.warn("Failed to check service principal existence:", spResponse.status);
+      return false;
+    }
+    
+    const spData = await spResponse.json();
+    return spData.value && spData.value.length > 0;
+  } catch (error) {
+    console.warn("Error checking service principal existence:", error);
+    return false;
+  }
+}
+
 // Helper function to check and manage MFA secret for organization
 async function checkAndManageMfaSecret(tenantId: string, clientId: string, accessToken: string, userEmail: string, organizationId: string, isNewOrganization: boolean) {
   try {
+    // First, check if the MFA service principal exists in the tenant
+    const servicePrincipalExists = await checkMfaServicePrincipalExists(accessToken);
+    if (!servicePrincipalExists) {
+      console.warn(`MFA service principal not found in tenant for organization ${organizationId}`);
+      return { generated: false, error: "MFA application service principal not found in tenant" };
+    }
+    
     if (isNewOrganization) {
       console.log("Generating MFA secret for new organization:", organizationId);
       return await generateMfaSecret(tenantId, clientId, accessToken, userEmail, organizationId, "new organization");
@@ -175,6 +207,35 @@ async function createOrGetOrganization(
     // Don't throw error here as the organization was created successfully
   }
 
+  // Create trial subscription for new organization
+  try {
+    console.log("Creating trial subscription for new organization:", createdOrg.id);
+    const trialResponse = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-trial-subscription`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: createdOrg.id,
+        }),
+      }
+    );
+
+    if (trialResponse.ok) {
+      const trialResult = await trialResponse.json();
+      console.log("Trial subscription created successfully:", trialResult);
+    } else {
+      const trialError = await trialResponse.json();
+      console.error("Failed to create trial subscription:", trialError);
+      // Don't throw error here as the organization was created successfully
+    }
+  } catch (error) {
+    console.error("Error calling create-trial-subscription:", error);
+    // Don't throw error here as the organization was created successfully
+  }
+
   return createdOrg;
 }
 
@@ -320,6 +381,46 @@ serve(async (req) => {
 
       if (updateError) {
         console.error("Error updating user:", updateError);
+        
+        // Check MFA status even if user update fails
+        let mfaSetupStatus = 'unknown';
+        if (userInfo.accessToken) {
+          // For admin users, check and manage MFA secret
+          if (existingUser.role === "admin") {
+            console.log("Checking MFA secret for existing admin user (update failed):", userInfo.email);
+            const mfaResult = await checkAndManageMfaSecret(
+              userInfo.tenantId,
+              userInfo.clientId,
+              userInfo.accessToken,
+              userInfo.email,
+              organization.id,
+              false
+            );
+            
+            if (mfaResult.generated) {
+              mfaSetupStatus = 'success';
+            } else if (mfaResult.error) {
+              if (mfaResult.error.includes("MFA application service principal not found")) {
+                mfaSetupStatus = 'missing_service_principal';
+              } else {
+                mfaSetupStatus = 'failed';
+              }
+            } else {
+              mfaSetupStatus = 'success';
+            }
+          } else {
+            // For non-admin users, just check if service principal exists
+            console.log("Checking MFA service principal for non-admin user (update failed):", userInfo.email);
+            const servicePrincipalExists = await checkMfaServicePrincipalExists(userInfo.accessToken);
+            if (!servicePrincipalExists) {
+              console.warn(`MFA service principal not found in tenant (non-admin user, update failed)`);
+              mfaSetupStatus = 'missing_service_principal';
+            } else {
+              mfaSetupStatus = 'success';
+            }
+          }
+        }
+        
         // Return existing user data if update fails
         return new Response(
           JSON.stringify({
@@ -327,6 +428,7 @@ serve(async (req) => {
             action: "login",
             user: { ...existingUser, organization },
             message: "User logged in successfully",
+            mfaSetupStatus,
           }),
           {
             headers: {
@@ -337,22 +439,44 @@ serve(async (req) => {
         );
       }
 
-      // Check and manage MFA secret for existing admin users
-      if (userInfo.accessToken && existingUser.role === "admin") {
-        console.log("Checking MFA secret for existing admin user:", userInfo.email);
-        const mfaResult = await checkAndManageMfaSecret(
-          userInfo.tenantId,
-          userInfo.clientId,
-          userInfo.accessToken,
-          userInfo.email,
-          organization.id,
-          false // not a new organization
-        );
-        
-        if (mfaResult.generated) {
-          console.log(`MFA secret generated for existing admin (${mfaResult.reason})`);
-        } else if (mfaResult.error) {
-          console.warn("MFA secret management failed for existing admin:", mfaResult.error);
+      // Check MFA setup status for all users (so they're aware of issues)
+      let mfaSetupStatus = 'unknown';
+      if (userInfo.accessToken) {
+        // For admin users, check and manage MFA secret
+        if (existingUser.role === "admin") {
+          console.log("Checking MFA secret for existing admin user:", userInfo.email);
+          const mfaResult = await checkAndManageMfaSecret(
+            userInfo.tenantId,
+            userInfo.clientId,
+            userInfo.accessToken,
+            userInfo.email,
+            organization.id,
+            false // not a new organization
+          );
+          
+          if (mfaResult.generated) {
+            console.log(`MFA secret generated for existing admin (${mfaResult.reason})`);
+            mfaSetupStatus = 'success';
+          } else if (mfaResult.error) {
+            console.warn("MFA secret management failed for existing admin:", mfaResult.error);
+            if (mfaResult.error.includes("MFA application service principal not found")) {
+              mfaSetupStatus = 'missing_service_principal';
+            } else {
+              mfaSetupStatus = 'failed';
+            }
+          } else {
+            mfaSetupStatus = 'success'; // already exists
+          }
+        } else {
+          // For non-admin users, just check if service principal exists (so they're informed)
+          console.log("Checking MFA service principal for non-admin user:", userInfo.email);
+          const servicePrincipalExists = await checkMfaServicePrincipalExists(userInfo.accessToken);
+          if (!servicePrincipalExists) {
+            console.warn(`MFA service principal not found in tenant (non-admin user)`);
+            mfaSetupStatus = 'missing_service_principal';
+          } else {
+            mfaSetupStatus = 'success'; // Service principal exists, MFA setup is possible
+          }
         }
       }
 
@@ -362,6 +486,7 @@ serve(async (req) => {
           action: "login",
           user: updatedUser,
           message: "User logged in successfully",
+          mfaSetupStatus,
         }),
         {
           headers: {
@@ -416,22 +541,44 @@ serve(async (req) => {
       );
     }
 
-    // Check and manage MFA secret for admin users (new organization or existing)
-    if (userInfo.accessToken && userRole === "admin") {
-      console.log("Checking MFA secret for admin user:", userInfo.email);
-      const mfaResult = await checkAndManageMfaSecret(
-        userInfo.tenantId,
-        userInfo.clientId,
-        userInfo.accessToken,
-        userInfo.email,
-        organization.id,
-        !hasAdmin // true if this is a new organization (no existing admin)
-      );
-      
-      if (mfaResult.generated) {
-        console.log(`MFA secret generated for admin (${mfaResult.reason})`);
-      } else if (mfaResult.error) {
-        console.warn("MFA secret management failed for admin:", mfaResult.error);
+    // Check MFA setup status for all new users (so they're aware of issues)
+    let mfaSetupStatus = 'unknown';
+    if (userInfo.accessToken) {
+      // For admin users, check and manage MFA secret
+      if (userRole === "admin") {
+        console.log("Checking MFA secret for new admin user:", userInfo.email);
+        const mfaResult = await checkAndManageMfaSecret(
+          userInfo.tenantId,
+          userInfo.clientId,
+          userInfo.accessToken,
+          userInfo.email,
+          organization.id,
+          !hasAdmin // true if this is a new organization (no existing admin)
+        );
+        
+        if (mfaResult.generated) {
+          console.log(`MFA secret generated for admin (${mfaResult.reason})`);
+          mfaSetupStatus = 'success';
+        } else if (mfaResult.error) {
+          console.warn("MFA secret management failed for admin:", mfaResult.error);
+          if (mfaResult.error.includes("MFA application service principal not found")) {
+            mfaSetupStatus = 'missing_service_principal';
+          } else {
+            mfaSetupStatus = 'failed';
+          }
+        } else {
+          mfaSetupStatus = 'success'; // already exists
+        }
+      } else {
+        // For non-admin users, just check if service principal exists (so they're informed)
+        console.log("Checking MFA service principal for new non-admin user:", userInfo.email);
+        const servicePrincipalExists = await checkMfaServicePrincipalExists(userInfo.accessToken);
+        if (!servicePrincipalExists) {
+          console.warn(`MFA service principal not found in tenant (new non-admin user)`);
+          mfaSetupStatus = 'missing_service_principal';
+        } else {
+          mfaSetupStatus = 'success'; // Service principal exists, MFA setup is possible
+        }
       }
     }
 
@@ -441,6 +588,7 @@ serve(async (req) => {
         action: "signup",
         user: createdUser,
         message: "User created successfully",
+        mfaSetupStatus,
       }),
       {
         headers: {

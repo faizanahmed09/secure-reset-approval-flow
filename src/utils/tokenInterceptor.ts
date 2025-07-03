@@ -60,8 +60,8 @@ export class TokenInterceptor {
         return await this.refreshAccessToken();
       }
 
-      // No MSAL instance or accounts, redirect to login
-      this.redirectToLogin('No valid authentication available');
+      // No MSAL instance or accounts, prepare for re-authentication
+      this.prepareForReAuthentication('No valid authentication available');
       throw new Error('AUTHENTICATION_REQUIRED');
     } catch (error) {
       console.error('Error getting valid access token:', error);
@@ -105,7 +105,7 @@ export class TokenInterceptor {
           error.errorCode === "interaction_required" ||
           error.errorCode === "consent_required" ||
           error.errorCode === "login_required") {
-        this.redirectToLogin('Interactive authentication required');
+        this.prepareForReAuthentication('Interactive authentication required');
       }
       
       throw error;
@@ -158,16 +158,16 @@ export class TokenInterceptor {
               },
             });
 
-            // If retry also fails with 401, redirect to login
+            // If retry also fails with 401, prepare for re-authentication
             if (retryResponse.status === 401) {
-              this.redirectToLogin('Authentication failed after token refresh');
+              this.prepareForReAuthentication('Authentication failed after token refresh');
               throw new Error('AUTHENTICATION_FAILED');
             }
 
             return retryResponse;
           } catch (refreshError) {
             console.error('Token refresh failed:', refreshError);
-            this.redirectToLogin('Unable to refresh authentication');
+            this.prepareForReAuthentication('Unable to refresh authentication');
             throw new Error('AUTHENTICATION_FAILED');
           }
         }
@@ -237,28 +237,12 @@ export class TokenInterceptor {
   }
 
   /**
-   * Redirect to login page with proper cleanup
+   * Clear tokens and prepare for re-authentication
+   * Note: UI handling (modals, redirects) should be done by AuthContext
    */
-  private redirectToLogin(reason: string): void {
-    console.log(`Redirecting to login: ${reason}`);
-    
+  private prepareForReAuthentication(reason: string): void {
+    console.log(`Authentication required: ${reason}`);
     this.clearStoredTokens();
-    
-    // Show a toast notification if available
-    if (typeof window !== 'undefined' && (window as any).showToast) {
-      (window as any).showToast({
-        title: 'Session Expired',
-        description: 'Your session has expired. Redirecting to login...',
-        variant: 'destructive',
-      });
-    }
-
-    // Redirect after a short delay to allow toast to show
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
-    }, 1500);
   }
 
   /**
@@ -271,13 +255,13 @@ export class TokenInterceptor {
     if (error.message === 'AUTHENTICATION_REQUIRED' || 
         error.message === 'AUTHENTICATION_FAILED' ||
         (error.error && error.error.code === 'InvalidAuthenticationToken')) {
-      this.redirectToLogin('Authentication error detected');
+      this.prepareForReAuthentication('Authentication error detected');
       return;
     }
 
     // Check for interaction required errors
     if (error.message === 'INTERACTION_REQUIRED') {
-      this.redirectToLogin('Interactive authentication required');
+      this.prepareForReAuthentication('Interactive authentication required');
       return;
     }
 

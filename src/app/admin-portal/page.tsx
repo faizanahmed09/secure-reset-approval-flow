@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import { useMsal } from '@azure/msal-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link'
-import { FileText, LogOut, Loader2, Users, ArrowRight, Shield, Settings, Send, Building2 } from 'lucide-react';
+import { FileText, LogOut, Loader2, Users, ArrowRight, Shield, Settings, Send, Building2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
-  const { user, isLoading, isAuthenticated, needsOrganizationSetup, handleLogout } = useAuth();
+  const { user, isLoading, isAuthenticated, needsOrganizationSetup, mfaSetupStatus, handleLogout, isSessionExpired } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -42,12 +42,12 @@ const Index = () => {
     }
   }, [inProgress]);
 
-  // Handle redirect for unauthenticated users
+  // Handle redirect for unauthenticated users (but not when session expired modal is showing)
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && !isAuthenticated && !isSessionExpired) {
       router.push('/');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, isSessionExpired, router]);
 
   // Check for organization setup need and redirect if necessary
   useEffect(() => {
@@ -57,21 +57,32 @@ const Index = () => {
     }
   }, [isLoading, isAuthenticated, needsOrganizationSetup, router]);
 
-  // MFA is now handled during login, so we just mark it as checked
+  // Check MFA setup status and update session storage accordingly
   useEffect(() => {
-    const mfaAlreadyChecked = getMfaCheckedStatus();
+    console.log('Admin portal - MFA status check:', { 
+      isLoading, 
+      isAuthenticated, 
+      needsOrganizationSetup, 
+      mfaSetupStatus 
+    });
     
-    // Since MFA secrets are now managed during login, we don't need to do anything here
-    // Just mark as checked to prevent loading states
     if (
-      !mfaAlreadyChecked &&
       !isLoading && 
       isAuthenticated &&
-      !needsOrganizationSetup
+      !needsOrganizationSetup &&
+      mfaSetupStatus !== 'unknown'
     ) {
-      setMfaCheckedStatus(true);
+      // Only mark as checked if MFA setup was successful
+      if (mfaSetupStatus === 'success') {
+        console.log('MFA setup successful, marking as checked');
+        setMfaCheckedStatus(true);
+      } else {
+        console.log('MFA setup failed or missing service principal, not marking as checked:', mfaSetupStatus);
+        // If MFA setup failed or service principal is missing, don't mark as checked
+        setMfaCheckedStatus(false);
+      }
     }
-  }, [isLoading, isAuthenticated, needsOrganizationSetup]);
+  }, [isLoading, isAuthenticated, needsOrganizationSetup, mfaSetupStatus]);
 
   const handleLogoutClick = async () => {
     try {
@@ -107,8 +118,8 @@ const Index = () => {
     );
   }
 
-  // Show loader while redirecting to index page if not authenticated
-  if (!isAuthenticated) {
+  // Show loader while redirecting to index page if not authenticated (but not when session expired modal is showing)
+  if (!isAuthenticated && !isSessionExpired) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <BeautifulLoader />
@@ -199,6 +210,44 @@ const Index = () => {
                 <span>{user?.organizations?.display_name}</span>
               </div>
             </div>
+            
+            {/* MFA Service Principal Missing Alert */}
+            {mfaSetupStatus === 'missing_service_principal' && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-red-800 mb-1">MFA Service Setup Required</h3>
+                    <p className="text-sm text-red-700 mb-2">
+                      The AuthenPush MFA application service principal is not found in your Azure AD tenant. 
+                      This is required for user verification to work.
+                    </p>
+                    <p className="text-xs text-red-600">
+                      Please contact your Azure AD administrator to install the AuthenPush enterprise application in your tenant.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* MFA Setup Failed Alert */}
+            {mfaSetupStatus === 'failed' && (
+              <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-orange-800 mb-1">MFA Setup Error</h3>
+                    <p className="text-sm text-orange-700 mb-2">
+                      There was an error setting up MFA for your organization. User verification may not work properly.
+                    </p>
+                    <p className="text-xs text-orange-600">
+                      Please try logging out and back in, or contact support if the issue persists.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Show role-based options for authenticated users */}
             {renderRoleBasedButtons()}
           </div>

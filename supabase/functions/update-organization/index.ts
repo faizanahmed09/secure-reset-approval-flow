@@ -97,32 +97,7 @@ serve(async (req) => {
       });
     }
 
-    // Call the dedicated create-trial-subscription function
-    try {
-      console.log(`Calling create-trial-subscription for organization ${organizationId}`);
-      
-      const trialResponse = await fetch(`${supabaseUrl}/functions/v1/create-trial-subscription`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({ organizationId }),
-      });
 
-      const trialResult = await trialResponse.json();
-      
-      if (trialResult.success) {
-        console.log(`Successfully created trial subscription for organization ${organizationId}`);
-      } else {
-        console.log(`Trial creation skipped for organization ${organizationId}: ${trialResult.error}`);
-        // This is fine - organization might already have a subscription
-      }
-    } catch (trialError) {
-      console.error("Error calling create-trial-subscription:", trialError);
-      // Don't fail the organization update if trial creation fails
-      // Just log the error and continue
-    }
 
     return new Response(JSON.stringify({
       success: true,
