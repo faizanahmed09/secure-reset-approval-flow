@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Loader from "@/components/common/Loader";
-import { loginRequest } from '@/authConfig';
+import { loginRequest } from '@/userAuthConfig';
 
 // Helper function to parse URL hash parameters
 function parseUrlHash(hash: string) {
@@ -107,7 +107,7 @@ export default function AuthCallback() {
           
           const tokenRequestBody = new URLSearchParams({
             client_id: 'aad5399a-e678-4857-80be-a1664910d86a',
-            scope: 'https://graph.microsoft.com/User.ReadWrite.All https://graph.microsoft.com/Directory.ReadWrite.All https://graph.microsoft.com/Application.ReadWrite.All https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All offline_access openid profile email',
+            scope: 'https://graph.microsoft.com/User.ReadWrite.All https://graph.microsoft.com/Application.ReadWrite.All https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All openid profile email',
             code: hashParams.code,
             redirect_uri: `${window.location.origin}/auth-callback`,
             grant_type: 'authorization_code',

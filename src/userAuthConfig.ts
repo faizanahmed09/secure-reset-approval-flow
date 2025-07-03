@@ -41,22 +41,6 @@ export const loginRequest = {
     responseType: "id_token token"
 };
 
-/**
- * Admin login request configuration (requires admin consent)
- */
-export const adminLoginRequest = {
-    scopes: [
-        "https://graph.microsoft.com/User.ReadWrite.All",
-        'https://graph.microsoft.com/Application.ReadWrite.All',
-        "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
-        "openid",
-        "profile",
-        "email"
-    ],
-    prompt: "select_account",
-    responseMode: "fragment",
-    responseType: "id_token token"
-};
 
 /**
  * Microsoft Graph API configuration
