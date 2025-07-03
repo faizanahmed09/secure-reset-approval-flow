@@ -66,6 +66,13 @@ const ChangeRequestsLog = () => {
   retentionDate.setDate(retentionDate.getDate() - LOG_RETENTION_DAYS);
   const retentionDateString = retentionDate.toISOString();
   
+  // Handle redirect for unauthenticated users (but not when session expired modal is showing)
+  useEffect(() => {
+    if (!isLoading && !checkingSubscription && (!isAuthenticated || !user) && !isSessionExpired) {
+      router.push('/');
+    }
+  }, [isLoading, checkingSubscription, isAuthenticated, user, isSessionExpired, router]);
+  
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user?.id) {
@@ -177,7 +184,7 @@ const ChangeRequestsLog = () => {
     queryKey: ['changeRequests', filters, tenantId],
     queryFn: fetchChangeRequests,
     placeholderData: (previousData) => previousData, // Modern replacement for keepPreviousData
-    enabled: !!tenantId // Only run query if tenantId is available
+    enabled: !!tenantId && !checkingSubscription // Only run query if tenantId is available and subscription check is done
   });
 
   // Handle filter changes
@@ -206,13 +213,6 @@ const ChangeRequestsLog = () => {
       </div>
     );
   }
-
-  // Handle redirect for unauthenticated users (but not when session expired modal is showing)
-  useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !user) && !isSessionExpired) {
-      router.push('/');
-    }
-  }, [isLoading, isAuthenticated, user, isSessionExpired, router]);
 
   // Show loader while redirecting to login if not authenticated (but not when session expired modal is showing)
   if ((!isAuthenticated || !user) && !isSessionExpired) {
