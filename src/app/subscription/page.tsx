@@ -11,20 +11,18 @@ import { BeautifulLoader } from '@/app/loader';
 import { getSubscriptionStatus, SubscriptionStatus } from '@/services/subscriptionService';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { useRouter } from 'next/navigation';
 
 const SubscriptionPage = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [subStatusLoading, setSubStatusLoading] = useState(true);
 
   // Handle redirect for unauthenticated users
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/');
+      window.location.href = '/';
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated]);
 
   useEffect(() => {
     const fetchStatus = async () => {

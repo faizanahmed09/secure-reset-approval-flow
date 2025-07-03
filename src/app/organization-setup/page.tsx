@@ -25,7 +25,7 @@ export default function OrganizationSetup() {
     if (!isLoading) {
       // Check if user is authenticated and is admin
       if (!user) {
-        router.push("/");
+        window.location.href = "/";
         return;
       }
 

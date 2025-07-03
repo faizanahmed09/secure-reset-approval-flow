@@ -45,9 +45,9 @@ const Index = () => {
   // Handle redirect for unauthenticated users (but not when session expired modal is showing)
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isSessionExpired) {
-      router.push('/');
+      window.location.href = '/';
     }
-  }, [isLoading, isAuthenticated, isSessionExpired, router]);
+  }, [isLoading, isAuthenticated, isSessionExpired]);
 
   // Check for organization setup need and redirect if necessary
   useEffect(() => {

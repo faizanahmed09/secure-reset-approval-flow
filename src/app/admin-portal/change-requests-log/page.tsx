@@ -11,7 +11,6 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
 import { BeautifulLoader } from "@/app/loader";
 import { checkSubscriptionAccess } from '@/services/subscriptionService';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,7 +44,6 @@ export type FilterOptions = {
 const ChangeRequestsLog = () => {
   const { toast } = useToast();
   const { user, isLoading, isAuthenticated, isSessionExpired } = useAuth();
-  const router = useRouter();
   const [filters, setFilters] = useState<FilterOptions>({
     search: "",
     status: "",
@@ -69,9 +67,9 @@ const ChangeRequestsLog = () => {
   // Handle redirect for unauthenticated users (but not when session expired modal is showing)
   useEffect(() => {
     if (!isLoading && !checkingSubscription && (!isAuthenticated || !user) && !isSessionExpired) {
-      router.push('/');
+      window.location.href = '/';
     }
-  }, [isLoading, checkingSubscription, isAuthenticated, user, isSessionExpired, router]);
+  }, [isLoading, checkingSubscription, isAuthenticated, user, isSessionExpired]);
   
   useEffect(() => {
     const fetchSubscription = async () => {

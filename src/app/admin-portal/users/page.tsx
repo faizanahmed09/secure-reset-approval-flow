@@ -1,20 +1,18 @@
 'use client';
 import UsersComponent from '@/components/UsersComponent';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import { BeautifulLoader } from '@/app/loader';
 import React, { useEffect } from 'react'
 
 const UsersRoutePage = () => {
-  const { user, isLoading, isAuthenticated, isSessionExpired } = useAuth();
-  const router = useRouter();
+  const { isLoading, isAuthenticated, isSessionExpired } = useAuth();
 
   // Handle redirect for unauthenticated users (but not when session expired modal is showing)
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isSessionExpired) {
-      router.push('/');
+      window.location.href = '/';
     }
-  }, [isLoading, isAuthenticated, isSessionExpired, router]);
+  }, [isLoading, isAuthenticated, isSessionExpired]);
 
   // Show loader while checking authentication
   if (isLoading) {
