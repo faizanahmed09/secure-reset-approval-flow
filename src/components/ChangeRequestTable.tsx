@@ -188,8 +188,6 @@ const ChangeRequestTable = ({
 
   return (
     <div className="relative mt-2">
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
       <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl p-4">
         <Table>
           <TableHeader>

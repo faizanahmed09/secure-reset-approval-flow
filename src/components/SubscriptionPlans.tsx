@@ -162,26 +162,22 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
   };
 
   return (
-    <div className="relative">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-100/20 via-blue-200/20 to-blue-100/20 rounded-3xl transform rotate-2 scale-105"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-200/20 via-blue-100/20 to-blue-200/20 rounded-3xl transform -rotate-1 scale-105"></div>
-      
-      <div className="relative container mx-auto py-6">
+    <div className="bg-white">
+      <div className="container mx-auto py-6">
         {/* Header Section */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-3">
             <div className="relative">
-              <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-xl">
+              <div className="p-4 bg-blue-500 rounded-2xl shadow-xl">
                 <Crown className="h-8 w-8 text-yellow-300" />
               </div>
-              <div className="absolute -top-2 -right-2 p-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full animate-pulse">
+              <div className="absolute -top-2 -right-2 p-1 bg-yellow-400 rounded-full animate-pulse">
                 <Star className="h-4 w-4 text-white" />
               </div>
             </div>
           </div>
           
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-gray-900 via-blue-700 to-blue-800 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold mb-2 text-gray-900">
             {subscriptionStatus?.hasActiveSubscription ? 'Manage Your Plan' : 'Choose Your Plan'}
           </h1>
           
@@ -193,33 +189,28 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
         {/* Plan Card */}
         <div className="flex justify-center">
           <div className="relative w-full max-w-xl mx-auto">
-            {/* Most Popular Badge */}
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-              <Badge className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg text-sm font-semibold">
+              <Badge className="px-4 py-2 bg-blue-500 text-white border-0 shadow-lg text-sm font-semibold">
                 <Sparkles className="h-4 w-4 mr-2" />
                 Most Popular
               </Badge>
             </div>
             
-            <Card className="relative border-0 shadow-2xl bg-gradient-to-br from-white via-blue-50/30 to-blue-50/30 backdrop-blur-sm overflow-hidden group hover:shadow-3xl transition-all duration-500 hover:scale-105 w-full max-w-xl mx-auto px-8 py-8 rounded-3xl">
-              {/* Background effects */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/20 to-blue-300/20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
-              <div className="absolute -bottom-10 -left-10 w-28 h-28 bg-gradient-to-tr from-blue-200/15 to-blue-300/15 rounded-full blur-2xl"></div>
-              
+            <Card className="relative border shadow-2xl bg-white overflow-hidden w-full max-w-xl mx-auto px-8 py-8 rounded-3xl pt-12">
               <CardHeader className="text-center relative pb-3 px-1">
                 {/* Plan Icon */}
                 <div className="flex justify-center mb-2">
                   <div className="relative">
-                    <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-xl group-hover:shadow-2xl transition-all duration-300">
+                    <div className="p-4 bg-blue-500 rounded-2xl shadow-xl">
                       <Zap className="h-8 w-8 text-white" />
                     </div>
-                    <div className="absolute -top-1 -right-1 p-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full">
+                    <div className="absolute -top-1 -right-1 p-1 bg-yellow-400 rounded-full">
                       <Shield className="h-3 w-3 text-white" />
                     </div>
                   </div>
                 </div>
                 
-                <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <CardTitle className="text-xl font-bold text-gray-900">
                   {plan.name}
                 </CardTitle>
                 <CardDescription className="text-gray-600 text-base mt-1">
@@ -230,18 +221,18 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
                 {loadingCount ? (
                   <div className="mt-8">
                     <div className="animate-pulse space-y-3">
-                      <div className="h-12 bg-gradient-to-r from-blue-200 to-blue-300 rounded-lg w-32 mx-auto"></div>
-                      <div className="h-6 bg-gradient-to-r from-blue-200 to-blue-300 rounded w-40 mx-auto"></div>
+                      <div className="h-12 bg-gray-200 rounded-lg w-32 mx-auto"></div>
+                      <div className="h-6 bg-gray-200 rounded w-40 mx-auto"></div>
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-white/50">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent mb-1">
+                  <div className="mt-4 p-4 bg-white rounded-xl border">
+                    <div className="text-3xl font-bold text-blue-600 mb-1">
                       {plan.formatted_price}
                     </div>
                     <div className="text-gray-600 text-base mb-2">per user per month</div>
                     
-                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-100">
+                    <div className="bg-blue-50 rounded-lg p-2 border border-blue-100">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <Users className="h-5 w-5 text-blue-500" />
                         <span className="font-semibold text-gray-700">Organization Coverage</span>
@@ -262,8 +253,8 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
                     if (!featureText) return null;
                     
                     return (
-                      <div key={key} className="flex items-start gap-2 p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/40 hover:bg-white/40 transition-all duration-300">
-                        <div className="p-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full mt-0.5">
+                      <div key={key} className="flex items-start gap-2 p-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50">
+                        <div className="p-1 bg-green-500 rounded-full mt-0.5">
                           <Check className="h-3 w-3 text-white" />
                         </div>
                         <span className="text-gray-700 font-medium">{featureText}</span>
@@ -271,8 +262,8 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
                     );
                   })}
                   
-                  <div className="flex items-start gap-2 p-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 shadow-sm">
-                    <div className="p-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mt-0.5">
+                  <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
+                    <div className="p-1 bg-blue-500 rounded-full mt-0.5">
                       <Check className="h-3 w-3 text-white" />
                     </div>
                     <span className="text-gray-700 font-medium">
@@ -283,9 +274,9 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
 
                 {/* Warning for no users */}
                 {userCount === 0 && (
-                  <div className="mb-4 p-3 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl shadow-sm">
+                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-r from-orange-400 to-red-400 rounded-full">
+                      <div className="p-2 bg-orange-400 rounded-full">
                         <Users className="h-4 w-4 text-white" />
                       </div>
                       <div>
@@ -299,11 +290,11 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
                 )}
 
                 {/* Subscribe Button */}
-                <Button 
+                <Button
                   className={`w-full h-11 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 group/btn ${
-                    isCurrentPlan() 
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' 
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                    isCurrentPlan()
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : 'bg-blue-600 hover:bg-blue-700'
                   } text-white border-0`}
                   onClick={handleSubscribe}
                   disabled={isButtonDisabled()}
@@ -316,7 +307,6 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
             </Card>
           </div>
         </div>
-
       </div>
     </div>
   );

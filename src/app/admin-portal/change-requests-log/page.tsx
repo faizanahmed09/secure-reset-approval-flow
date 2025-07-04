@@ -237,7 +237,7 @@ const ChangeRequestsLog = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <Header />
       <main className="flex-1 container py-12 relative">
         {/* Navigation */}
@@ -262,9 +262,6 @@ const ChangeRequestsLog = () => {
         </div>
         {/* Filters and Table Section */}
         <div className="relative">
-          {/* Background decoration */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-3xl transform rotate-1"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-3xl transform -rotate-1"></div>
           <Card className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200/50 shadow-xl">
             <div className="mb-8">
               <ChangeRequestFilters 

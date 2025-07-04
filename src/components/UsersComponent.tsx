@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users, ArrowLeft, Search, SortAsc, SortDesc, Filter, RefreshCw, Database } from 'lucide-react';
+import { Loader2, Users, ArrowLeft, Search, SortAsc, SortDesc, Filter, RefreshCw, Database, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import Loader from "@/components/common/Loader";
@@ -16,6 +16,7 @@ import { debounce } from 'lodash';
 import { getAccessToken } from '@/services/userService';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import UserFilters, { UserFilterOptions, SortField, SortOrder } from '@/components/UserFilters';
 
 interface AzureUser {
   id: string;
@@ -33,9 +34,6 @@ interface CacheEntry {
   sortBy: string;
   sortOrder: string;
 }
-
-type SortField = 'displayName' | 'userPrincipalName' | 'mail';
-type SortOrder = 'asc' | 'desc';
 
 // Cache implementation
 class UserCache {
@@ -84,6 +82,11 @@ class UserCache {
 const UsersComponent = () => {
   const { instance, accounts, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
+  
+  const tenantId = accounts[0]?.tenantId;
+  const upn = accounts[0]?.username;
+  const tenantDomain = upn?.split('@')[1];
+
   const [users, setUsers] = useState<AzureUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -91,15 +94,21 @@ const UsersComponent = () => {
   const [error, setError] = useState<string | null>(null);
   const [nextLink, setNextLink] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortField>('displayName');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [filters, setFilters] = useState<UserFilterOptions>({
+    search: '',
+    sortBy: 'displayName',
+    sortOrder: 'asc'
+  });
   const [currentPage, setCurrentPage] = useState(0);
   const { toast } = useToast();
   const router = useRouter();
   const fetchCalled = useRef(false);
   const userCache = useRef(new UserCache());
   const searchAbortControllerRef = useRef<AbortController | null>(null);
+
+  const handleFilterChange = (newFilters: Partial<UserFilterOptions>) => {
+    setFilters(prev => ({...prev, ...newFilters}));
+  };
 
   // Optimized field selection for better performance
   const selectFields = [
@@ -108,8 +117,6 @@ const UsersComponent = () => {
     'userPrincipalName',
     'mail'
   ].join(',');
-
-
 
   // Debounced search function
   const debouncedSearch = useCallback(
@@ -124,7 +131,7 @@ const UsersComponent = () => {
 
       await searchUsers(query);
     }, 500),
-    [sortBy, sortOrder]
+    [filters.sortBy, filters.sortOrder]
   );
 
   useEffect(() => {
@@ -149,21 +156,21 @@ const UsersComponent = () => {
 
   // Handle search input change
   useEffect(() => {
-    debouncedSearch(searchQuery);
-  }, [searchQuery, debouncedSearch]);
+    debouncedSearch(filters.search);
+  }, [filters.search, debouncedSearch]);
 
   // Handle sort changes
   useEffect(() => {
     if (fetchCalled.current) {
       setCurrentPage(0);
       fetchCalled.current = false;
-      if (searchQuery.trim().length >= 2) {
-        searchUsers(searchQuery);
+      if (filters.search.trim().length >= 2) {
+        searchUsers(filters.search);
       } else {
         fetchUsers(false, '');
       }
     }
-  }, [sortBy, sortOrder]);
+  }, [filters.sortBy, filters.sortOrder]);
 
   const buildApiEndpoint = (isLoadMore: boolean, query: string = ''): string => {
     let endpoint = `${graphConfig.graphUsersEndpoint}`;
@@ -187,8 +194,8 @@ const UsersComponent = () => {
       // Don't add orderby when using search
     } else {
       // Add sorting only when not searching
-      const sortDirection = sortOrder === 'desc' ? 'desc' : 'asc';
-      params.append('$orderby', `${sortBy} ${sortDirection}`);
+      const sortDirection = filters.sortOrder === 'desc' ? 'desc' : 'asc';
+      params.append('$orderby', `${filters.sortBy} ${sortDirection}`);
     }
 
     return `${endpoint}?${params.toString()}`;
@@ -212,7 +219,7 @@ const UsersComponent = () => {
       setError(null);
 
       // Check cache first
-      const cachedData = userCache.current.get(query, sortBy, sortOrder, 0);
+      const cachedData = userCache.current.get(query, filters.sortBy, filters.sortOrder, 0);
       if (cachedData) {
         setUsers(cachedData.users);
         setTotalCount(cachedData.totalCount);
@@ -252,7 +259,7 @@ const UsersComponent = () => {
       setTotalCount(newTotalCount);
 
       // Cache the search results
-      userCache.current.set(query, sortBy, sortOrder, 0, {
+      userCache.current.set(query, filters.sortBy, filters.sortOrder, 0, {
         users: searchResults,
         totalCount: newTotalCount,
         nextLink: response.data['@odata.nextLink'] || null
@@ -300,7 +307,7 @@ const UsersComponent = () => {
 
       // Check cache first (only for non-search queries)
       if (!query) {
-        const cachedData = userCache.current.get('', sortBy, sortOrder, isLoadMore ? currentPage + 1 : 0);
+        const cachedData = userCache.current.get('', filters.sortBy, filters.sortOrder, isLoadMore ? currentPage + 1 : 0);
         if (cachedData && !isLoadMore) {
           setUsers(cachedData.users);
           setTotalCount(cachedData.totalCount);
@@ -358,7 +365,7 @@ const UsersComponent = () => {
 
       // Cache the results (only for non-search queries)
       if (!isLoadMore && !query) {
-        userCache.current.set('', sortBy, sortOrder, 0, {
+        userCache.current.set('', filters.sortBy, filters.sortOrder, 0, {
           users: updatedUsers,
           totalCount: newTotalCount,
           nextLink: newNextLink
@@ -392,7 +399,7 @@ const UsersComponent = () => {
 
   const loadMoreUsers = () => {
     if (nextLink && !loadingMore) {
-      if (searchQuery.trim().length >= 2) {
+      if (filters.search.trim().length >= 2) {
         // For search results, we might need to implement search pagination differently
         // For now, just show that more results are available
         toast({
@@ -411,8 +418,8 @@ const UsersComponent = () => {
     fetchCalled.current = false;
     setCurrentPage(0);
     
-    if (searchQuery.trim().length >= 2) {
-      searchUsers(searchQuery);
+    if (filters.search.trim().length >= 2) {
+      searchUsers(filters.search);
     } else {
       fetchUsers(false, '');
     }
@@ -424,38 +431,42 @@ const UsersComponent = () => {
     });
   };
 
-  const handleSortChange = (field: SortField) => {
-    if (field === sortBy) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-  };
+  const handleSendApproval = useCallback((user: AzureUser) => {
+    router.push(`/admin-portal/reset-approval?user=${encodeURIComponent(user.userPrincipalName)}`);
+  }, [router]);
 
   // Memoized user list to prevent unnecessary re-renders
   const UserList = useMemo(() => {
     return users.map((user: AzureUser) => (
       <div key={user.id} className="p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
-        <div className="flex flex-col space-y-2">
-          <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
+          <div>
             <div className="font-semibold text-lg">{user.displayName}</div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">
-              <span className="font-medium">Email:</span> {user.userPrincipalName}
-            </div>
+            <div className="text-sm text-muted-foreground">{user.userPrincipalName}</div>
             {user.mail && user.mail !== user.userPrincipalName && (
-              <div className="text-blue-600">
-                <span className="font-medium">Alt Email:</span> {user.mail}
-              </div>
+              <div className="text-sm text-blue-600">{user.mail}</div>
             )}
+          </div>
+          <div className="flex shrink-0 items-center space-x-4 pl-4">
+              <a 
+                href={`https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${user.id}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                title="Open user in Entra portal"
+              >
+                <img src="/Microsoft-entra-logo.png" alt="Entra Portal" className="h-12 w-12" />
+              </a>
+              <button 
+                onClick={() => handleSendApproval(user)}
+                title="Send approval request"
+              >
+                <Send className="h-8 w-8 text-blue-600 hover:text-blue-800 transition-colors" />
+              </button>
           </div>
         </div>
       </div>
     ));
-  }, [users]);
+  }, [users, handleSendApproval]);
 
   // Show loading state only for initial load
   if (loading || inProgress !== "none") {
@@ -496,7 +507,7 @@ const UsersComponent = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <Header />
       <main className="flex-1 container py-12">
         <div className="max-w-7xl mx-auto">
@@ -509,8 +520,6 @@ const UsersComponent = () => {
             Back to Home
           </Button>
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
             <Card className="relative w-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -539,50 +548,21 @@ const UsersComponent = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Search and Filter Controls */}
-                <div className="flex flex-col lg:flex-row gap-4 mb-6">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      placeholder="Search users by name or email (type 2+ characters)..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
-                    {searchLoading && (
-                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Select value={sortBy} onValueChange={(value: SortField) => handleSortChange(value)}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="displayName">Display Name</SelectItem>
-                        <SelectItem value="userPrincipalName">Email</SelectItem>
-                        <SelectItem value="mail">Alternate Email</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    >
-                      {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
+                <UserFilters 
+                  filters={filters} 
+                  onFilterChange={handleFilterChange} 
+                  searchLoading={searchLoading} 
+                />
                 {/* Results Info */}
                 {users.length > 0 && (
                   <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span>
                       Showing {users.length}{totalCount > 0 ? ` of ${totalCount}` : ''} users
                     </span>
-                    {searchQuery && searchQuery.length >= 2 && (
+                    {filters.search && filters.search.length >= 2 && (
                       <Badge variant="outline">
                         <Filter className="h-3 w-3 mr-1" />
-                        Search: "{searchQuery}"
+                        Search: "{filters.search}"
                       </Badge>
                     )}
                     {nextLink && (
@@ -590,9 +570,6 @@ const UsersComponent = () => {
                         More available
                       </Badge>
                     )}
-                    <Badge variant="outline">
-                      Sorted by {sortBy} ({sortOrder})
-                    </Badge>
                   </div>
                 )}
                 {users.length > 0 ? (
@@ -629,12 +606,12 @@ const UsersComponent = () => {
                   <div className="text-center py-12">
                     <div className="text-muted-foreground mb-4">
                       <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      {searchQuery && searchQuery.length >= 2 ? (
+                      {filters.search && filters.search.length >= 2 ? (
                         <>
                           <p className="text-lg font-medium">No users found</p>
-                          <p>No users match your search "{searchQuery}"</p>
+                          <p>No users match your search "{filters.search}"</p>
                         </>
-                      ) : searchQuery && searchQuery.length < 2 ? (
+                      ) : filters.search && filters.search.length < 2 ? (
                         <>
                           <p className="text-lg font-medium">Type to search</p>
                           <p>Enter at least 2 characters to search users</p>
@@ -646,10 +623,10 @@ const UsersComponent = () => {
                         </>
                       )}
                     </div>
-                    {searchQuery && (
+                    {filters.search && (
                       <Button
                         variant="outline"
-                        onClick={() => setSearchQuery('')}
+                        onClick={() => handleFilterChange({ search: '' })}
                       >
                         Clear Search
                       </Button>

@@ -9,10 +9,13 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { BeautifulLoader } from '@/app/loader';
 import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const ResetApproval = () => {
   const router = useRouter();
   const { user, isLoading, isAuthenticated, mfaSetupStatus, isSessionExpired } = useAuth();
+  const searchParams = useSearchParams();
+  const initialUserEmail = searchParams.get('user');
 
   // Handle redirect for unauthenticated users (but not when session expired modal is showing)
   useEffect(() => {
@@ -92,7 +95,7 @@ const ResetApproval = () => {
             
             <div className="flex flex-col items-center">
               <div className="max-w-md w-full space-y-8">
-                  <ResetApprovalForm />
+                  <ResetApprovalForm initialUserEmail={initialUserEmail} />
               </div>
             </div>
           </div>

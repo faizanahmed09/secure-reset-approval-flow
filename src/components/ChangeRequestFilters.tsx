@@ -49,8 +49,6 @@ const ChangeRequestFilters = ({
 
   return (
     <div className="relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-2xl transform rotate-1"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-2xl transform -rotate-1"></div>
       <Card className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl p-6">
         <CardContent className="pt-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

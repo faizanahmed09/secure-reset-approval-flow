@@ -57,14 +57,14 @@ const SubscriptionPage = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <Header />
       
       <main className="flex-1 container py-12 relative">
         {/* Navigation */}
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-4">
-            <div className="w-1 h-12 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
+            <div className="w-1 h-12 bg-blue-500 rounded-full"></div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Manage Your Plan</h2>
               <p className="text-gray-600">Control your billing and subscription preferences</p>
@@ -86,7 +86,7 @@ const SubscriptionPage = () => {
         {/* Current Subscription Status */}
         <div className="mb-16">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
+            <div className="p-2 bg-blue-500 rounded-lg">
               <Star className="h-5 w-5 text-white" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900">Current Subscription</h3>
@@ -101,7 +101,7 @@ const SubscriptionPage = () => {
         <div className="space-y-8">
           <div className="text-center">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg">
+              <div className="p-2 bg-blue-500 rounded-lg">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900">Available Plans</h3>
@@ -112,10 +112,6 @@ const SubscriptionPage = () => {
           </div>
           
           <div className="relative">
-            {/* Background decoration */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-100/50 via-purple-100/50 to-pink-100/50 rounded-3xl transform rotate-1"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-100/50 via-blue-100/50 to-purple-100/50 rounded-3xl transform -rotate-1"></div>
-            
             <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200/50 shadow-xl">
               <SubscriptionPlans subscriptionStatus={subscriptionStatus} plans={[]} />
             </div>
@@ -124,18 +120,15 @@ const SubscriptionPage = () => {
 
         {/* Bottom CTA Section */}
         <div className="mt-20 text-center">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-8 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            
+          <div className="bg-white rounded-2xl p-8 text-gray-800 relative overflow-hidden border">
             <div className="relative">
               <h4 className="text-2xl font-bold mb-4">Need Help Choosing?</h4>
-              <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+              <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
                 Our team is here to help you find the perfect plan for your organization's unique needs.
               </p>
               <Button 
                 variant="secondary" 
-                className="bg-white text-blue-600 hover:bg-blue-50 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="bg-gray-800 text-white hover:bg-gray-700 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                 onClick={() => window.open('mailto:support@authenpush.com', '_blank')}
               >
                 Contact Support

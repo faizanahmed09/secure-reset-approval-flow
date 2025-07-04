@@ -39,6 +39,10 @@ interface AzureUser {
   mail?: string;
 }
 
+interface ResetApprovalFormProps {
+  initialUserEmail?: string | null;
+}
+
 // Types
 type RequestStatus = 
   | "idle" 
@@ -67,9 +71,9 @@ interface AzureJwtPayload {
   [key: string]: any;
 }
 
-const ResetApprovalForm = () => {
+const ResetApprovalForm = ({ initialUserEmail }: ResetApprovalFormProps) => {
   const { instance, accounts } = useMsal();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialUserEmail || "");
   const [resetReq, setResetReq] = useState<ResetRequestState>({
     email: "",
     status: "idle",
@@ -85,6 +89,15 @@ const ResetApprovalForm = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const searchAbortControllerRef = useRef<AbortController | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialUserEmail) {
+      setEmail(initialUserEmail);
+      // We need to trigger search as well.
+      // Calling debouncedSearch directly might be one way.
+      debouncedSearch(initialUserEmail);
+    }
+  }, [initialUserEmail]);
 
   // Remove the automatic login redirect since authentication is handled at the page level
 
@@ -109,11 +122,7 @@ const ResetApprovalForm = () => {
       // Initialize token interceptor
       tokenInterceptor.initialize(instance, accounts);
 
-      // Build search filter - search in displayName, userPrincipalName, and mail
-      const searchFilter = `startswith(displayName,'${query}') or startswith(userPrincipalName,'${query}')`;
-      
-      // Note: $orderby is not supported with complex $filter queries in Microsoft Graph
-      const endpoint = `${graphConfig.graphUsersEndpoint}?$select=${selectFields}&$filter=${encodeURIComponent(searchFilter)}&$top=20`;
+      const endpoint = `${graphConfig.graphUsersEndpoint}?$select=${selectFields}&$search="displayName:${query}" OR "userPrincipalName:${query}"&$top=20`;
 
       // Use tokenInterceptor's fetch method for automatic token handling
       const response = await tokenInterceptor.graphApiFetch(endpoint, {
