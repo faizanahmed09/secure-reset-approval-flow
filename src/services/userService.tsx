@@ -5,6 +5,24 @@ import { tokenInterceptor } from '@/utils/tokenInterceptor';
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
 
 /**
+ * Helper function to get authorization headers for Supabase function calls
+ */
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (typeof window !== 'undefined') {
+    const idToken = window.sessionStorage.getItem('idToken');
+    if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`;
+    }
+  }
+
+  return headers;
+};
+
+/**
  * Centralized function to get access token using the token interceptor
  * This will automatically handle token refresh and expiration
  */
@@ -114,9 +132,7 @@ export const createDatabaseUser = async (
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         azureUser,
         role,
@@ -150,9 +166,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Us
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/get-users`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         organizationId,
       }),
@@ -185,9 +199,7 @@ export const updateUser = async (
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/update-user`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         userId,
         ...updates,
@@ -218,9 +230,7 @@ export const deleteUser = async (userId: string, adminEmail: string): Promise<{ 
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ userId, adminEmail }),
     });
 
