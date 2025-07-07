@@ -276,13 +276,15 @@ export const createCustomerPortalSession = async (params: {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Portal creation failed: ${response.statusText}`);
+      // Extract detailed error message from the response
+      const errorMessage = errorData.error || errorData.message || `Portal creation failed: ${response.statusText}`;
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
     
     if (!data.success) {
-      throw new Error(data.error || 'Failed to create customer portal session');
+      throw new Error(data.error || data.message || 'Failed to create customer portal session');
     }
 
     return { url: data.url };

@@ -1,5 +1,20 @@
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
 
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (typeof window !== 'undefined') {
+    const idToken = window.sessionStorage.getItem('idToken');
+    if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`;
+    }
+  }
+
+  return headers;
+};
+
 interface Organization {
   id: string;
   name: string;
@@ -28,19 +43,27 @@ export const organizationService = {
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/update-organization`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(request),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || `Failed to update organization: ${response.statusText}`);
+      }
+
       const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || data.error || 'Failed to update organization');
+      }
+
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating organization:", error);
       return {
         success: false,
-        message: "Failed to update organization",
+        message: error.message || "Failed to update organization",
       };
     }
   },
