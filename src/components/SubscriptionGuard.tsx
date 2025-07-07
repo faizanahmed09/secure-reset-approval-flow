@@ -121,7 +121,7 @@ const SubscriptionGuard = ({ children, feature = "this feature" }: SubscriptionG
                 onClick={() => router.push('/admin-portal')}
                 className="w-full"
               >
-                Back to Portal
+                Home
               </Button>
             </div>
           </CardContent>

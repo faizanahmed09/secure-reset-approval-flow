@@ -62,25 +62,25 @@ const SubscriptionPage = () => {
       
       <main className="flex-1 container py-12 relative">
         {/* Navigation */}
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-4">
-            <div className="w-1 h-12 bg-blue-500 rounded-full"></div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Manage Your Plan</h2>
-              <p className="text-gray-600">Control your billing and subscription preferences</p>
-            </div>
-          </div>
-          
+        <div className="flex items-center justify-between mb-6">
           <Link href="/admin-portal">
             <Button 
               variant="outline" 
-              size="sm" 
-              className="group border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all duration-300"
+              size="sm"
             >
-              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
-              Back to Portal
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Home
             </Button>
           </Link>
+        </div>
+
+        {/* Page Header */}
+        <div className="flex items-center gap-4 mb-12">
+          <div className="w-1 h-12 bg-blue-500 rounded-full"></div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Manage Your Plan</h2>
+            <p className="text-gray-600">Control your billing and subscription preferences</p>
+          </div>
         </div>
 
         {/* Current Subscription Status */}

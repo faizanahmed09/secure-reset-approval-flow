@@ -498,7 +498,7 @@ const UsersComponent = () => {
               Try Again
             </Button>
             <Button variant="outline" onClick={() => router.push('/admin-portal')}>
-              Back to Home
+              Home
             </Button>
           </div>
         </div>
@@ -511,14 +511,16 @@ const UsersComponent = () => {
       <Header />
       <main className="flex-1 container py-12">
         <div className="max-w-7xl mx-auto">
-          <Button 
-            variant="outline" 
-            className="mb-6" 
-            onClick={() => router.push('/admin-portal')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
+          <div className="flex items-center justify-between mb-6">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => router.push('/admin-portal')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Home
+            </Button>
+          </div>
           <div className="relative">
             <Card className="relative w-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl">
               <CardHeader>

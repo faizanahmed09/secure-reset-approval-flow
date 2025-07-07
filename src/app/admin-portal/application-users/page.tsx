@@ -103,7 +103,7 @@ const ApplicationUsers = () => {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Subscription and seat management states
+  // Subscription and user management states
   const [subscription, setSubscription] = useState<any>(null);
   const [seatInfo, setSeatInfo] = useState<any>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(false);
@@ -113,7 +113,7 @@ const ApplicationUsers = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Fetch both subscription and users, then calculate seats
+      // Fetch both subscription and users, then calculate user allocation
       const loadData = async () => {
         await Promise.all([
           fetchUsers(),
@@ -130,11 +130,11 @@ const ApplicationUsers = () => {
     }
   }, [isAuthenticated, user]);
 
-  // Recalculate seat info whenever subscription or billing user count changes
+  // Recalculate user info whenever subscription or billing user count changes
   useEffect(() => {
     if (subscription && billingUserCount >= 0) {
       const newSeatInfo = calculateSeatInfo(subscription, billingUserCount);
-      console.log('Seat info calculated:', {
+      console.log('User info calculated:', {
         subscription: subscription,
         billingUserCount,
         newSeatInfo
@@ -218,7 +218,7 @@ const ApplicationUsers = () => {
       const users = await fetchOrganizationUsers(user.organization_id);
       setUsers(users);
       
-      // Seat info will be recalculated by the useEffect hook
+      // User info will be recalculated by the useEffect hook
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -239,7 +239,7 @@ const ApplicationUsers = () => {
       const subscriptionData = await getSubscriptionStatus(user.id);
       setSubscription(subscriptionData.subscription);
       
-      // Seat info will be recalculated by the useEffect hook
+      // User info will be recalculated by the useEffect hook
     } catch (error) {
       console.error('Error fetching subscription:', error);
     } finally {
@@ -293,7 +293,7 @@ const ApplicationUsers = () => {
         currentUser.role === 'basic' && 
         (editingUser.role === 'admin' || editingUser.role === 'verifier');
 
-      // Validate seat limits for role upgrades (skip validation during trial)
+      // Validate user limits for role upgrades (skip validation during trial)
       if (isUpgradingToBillable && subscription?.plan_name !== 'TRIAL') {
         // Check if subscription is canceled AND has expired
         if (subscription && subscription.status === 'canceled') {
@@ -310,11 +310,11 @@ const ApplicationUsers = () => {
           }
         }
 
-        // Check seat availability
+        // Check user availability
         if (seatInfo && seatInfo.availableSeats <= 0) {
           toast({
-            title: 'Seat Limit Reached',
-            description: `Cannot upgrade user to ${editingUser.role}. You have ${seatInfo.subscribedSeats} subscribed seats and ${seatInfo.activeUsers} billable users. Please upgrade your subscription to add more admin/verifier users.`,
+            title: 'User Limit Reached',
+            description: `Cannot upgrade user to ${editingUser.role}. You have ${seatInfo.subscribedSeats} subscribed users and ${seatInfo.activeUsers} billable users. Please upgrade your subscription to add more admin/verifier users.`,
             variant: 'destructive',
           });
           return;
@@ -333,13 +333,13 @@ const ApplicationUsers = () => {
           : user
       ));
 
-      // If the role change affects billing (basic <-> admin/verifier), refresh billing count and seat info
+      // If the role change affects billing (basic <-> admin/verifier), refresh billing count and user info
       const isDowngradingFromBillable = 
         (currentUser.role === 'admin' || currentUser.role === 'verifier') && 
         editingUser.role === 'basic';
 
       if (isUpgradingToBillable || isDowngradingFromBillable) {
-        // Refresh billing user count and recalculate seat info
+        // Refresh billing user count and recalculate user info
         await fetchBillingUserCount();
       }
 
@@ -525,7 +525,7 @@ const ApplicationUsers = () => {
       
       // Check if we need to show upgrade confirmation modal first
       if (subscription && seatInfo) {
-        console.log('Seat check:', {
+        console.log('User check:', {
           availableSeats: seatInfo.availableSeats,
           billingUserCount,
           subscribedSeats: subscription.user_count,
@@ -556,7 +556,7 @@ const ApplicationUsers = () => {
       }
     }
 
-    // Proceed with user creation (either basic user or we have available seats)
+    // Proceed with user creation (either basic user or we have available user slots)
     await createUserDirectly(azureUser);
   };
 
@@ -566,9 +566,9 @@ const ApplicationUsers = () => {
     try {
       setCreatingUser(true);
       
-      // Check seat availability for admin/verifier users and handle automatic upgrades (skip during trial)
+      // Check user availability for admin/verifier users and handle automatic upgrades (skip during trial)
       if (subscription && subscription.plan_name !== 'TRIAL' && seatInfo && (selectedRole === 'admin' || selectedRole === 'verifier')) {
-        console.log('🔄 Checking seat availability and handling upgrades...');
+        console.log('🔄 Checking user availability and handling upgrades...');
         
         const seatResult = await seatManagerAddUser(
           user.organization_id,
@@ -589,7 +589,7 @@ const ApplicationUsers = () => {
         if (seatResult.needsUpgrade && seatResult.prorationDetails) {
           toast({
             title: 'Subscription Upgraded',
-            description: `Upgraded to ${seatResult.newSeatCount} seats. ${seatResult.message}`,
+            description: `Upgraded to ${seatResult.newSeatCount} users. ${seatResult.message}`,
           });
         }
       }
@@ -676,7 +676,7 @@ const ApplicationUsers = () => {
       
       console.log('🔄 Confirming upgrade and creating user...');
       
-      // Use automatic seat manager to upgrade subscription
+      // Use automatic user manager to upgrade subscription
       const seatResult = await seatManagerAddUser(
         user.organization_id,
         subscription!,
@@ -696,7 +696,7 @@ const ApplicationUsers = () => {
       if (seatResult.needsUpgrade && seatResult.prorationDetails) {
         toast({
           title: 'Subscription Upgraded',
-          description: `Upgraded to ${seatResult.newSeatCount} seats. ${seatResult.message}`,
+          description: `Upgraded to ${seatResult.newSeatCount} users. ${seatResult.message}`,
         });
       }
       
@@ -925,7 +925,7 @@ const ApplicationUsers = () => {
               <Link href="/admin-portal">
                 <Button variant="outline" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Portal
+                  Home
                 </Button>
               </Link>
               <div>
@@ -981,7 +981,7 @@ const ApplicationUsers = () => {
                       }) : 'Unknown'}
                     </p>
                     <p className="text-xs text-blue-700">
-                      After trial expiration, you'll need {billingUserCount} paid seat{billingUserCount !== 1 ? 's' : ''} to keep your current admin/verifier users active.
+                      After trial expiration, you'll need {billingUserCount} paid user{billingUserCount !== 1 ? 's' : ''} to keep your current admin/verifier users active.
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-blue-200">
@@ -996,7 +996,7 @@ const ApplicationUsers = () => {
             </Card>
           )}
 
-          {/* Seat Information Card */}
+          {/* User Information Card */}
           {isAdmin && seatInfo && subscription && subscription.plan_name !== 'TRIAL' && !isSubscriptionExpired(subscription) && (
             <Card className="mb-6">
               <CardHeader className="flex flex-row items-start justify-between">
@@ -1017,7 +1017,7 @@ const ApplicationUsers = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">{seatInfo.subscribedSeats}</div>
-                    <div className="text-sm text-muted-foreground">Subscribed Seats</div>
+                    <div className="text-sm text-muted-foreground">Subscribed Users</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">{seatInfo.activeUsers}</div>
@@ -1028,12 +1028,12 @@ const ApplicationUsers = () => {
                     <div className={`text-2xl font-bold ${seatInfo.availableSeats > 0 ? 'text-orange-600' : 'text-red-600'}`}>
                       {seatInfo.availableSeats}
                     </div>
-                    <div className="text-sm text-muted-foreground">Available Seats</div>
+                    <div className="text-sm text-muted-foreground">Available Users</div>
                   </div>
                   <div className="text-center">
                     <Badge variant={getSeatStatus(seatInfo) === 'available' ? 'secondary' : getSeatStatus(seatInfo) === 'full' ? 'destructive' : 'outline'}>
                       {getSeatStatus(seatInfo) === 'available' ? 'Can Add Users' : 
-                       getSeatStatus(seatInfo) === 'full' ? 'At Seat Limit' : 'Over Limit'}
+                       getSeatStatus(seatInfo) === 'full' ? 'At User Limit' : 'Over Limit'}
                     </Badge>
                     <div className="text-sm text-muted-foreground mt-1">{formatSeatInfo(seatInfo)}</div>
                   </div>
@@ -1051,7 +1051,7 @@ const ApplicationUsers = () => {
                 {seatInfo.availableSeats === 0 && (
                   <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
                     <p className="text-sm text-orange-800">
-                      ⚠️ At seat limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
+                      ⚠️ At user limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
                     </p>
                     <p className="text-xs text-orange-700 mt-1">
                       Basic users are always free and don't count towards your subscription.
@@ -1144,28 +1144,9 @@ const ApplicationUsers = () => {
                 {isAdmin && (
                   <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
                     <DialogTrigger asChild>
-                      <Button className="relative">
+                      <Button>
                         <UserPlus className="h-4 w-4 mr-2" />
                         Add User
-                        {isSubscriptionExpired(subscription) ? (
-                          <Badge variant="destructive" className="ml-2 h-5 text-xs">
-                            subscription required
-                          </Badge>
-                        ) : subscription?.plan_name === 'TRIAL' ? (
-                          <Badge variant="default" className="ml-2 h-5 text-xs bg-blue-600">
-                            unlimited trial
-                          </Badge>
-                        ) : seatInfo && (
-                          <Badge 
-                            variant={seatInfo.availableSeats > 0 ? "secondary" : "destructive"} 
-                            className="ml-2 h-5 text-xs"
-                          >
-                            {seatInfo.availableSeats > 0 
-                              ? `${seatInfo.availableSeats} free seats` 
-                              : 'upgrade needed'
-                            }
-                          </Badge>
-                        )}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl">
@@ -1215,16 +1196,16 @@ const ApplicationUsers = () => {
                             <div>
                               {seatInfo.availableSeats > 0 ? (
                                 <span className="text-green-600">
-                                  ✅ {seatInfo.availableSeats} seat{seatInfo.availableSeats === 1 ? '' : 's'} available for admin/verifier users
+                                  ✅ {seatInfo.availableSeats} user{seatInfo.availableSeats === 1 ? '' : 's'} available for admin/verifier users
                                 </span>
                               ) : (
                                 <span className="text-orange-600">
-                                  ⚠️ At seat limit - adding admin/verifier users will upgrade subscription
+                                  ⚠️ At user limit - adding admin/verifier users will upgrade subscription
                                 </span>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              💡 Basic users are always free and don't require seats
+                              💡 Basic users are always free and don't require user slots
                             </div>
                           </div>
                         )}
@@ -1409,7 +1390,7 @@ const ApplicationUsers = () => {
                                 }
                               />
                             ) : (
-                              <Badge variant={u.is_active ? 'default' : 'destructive'}>
+                              <Badge variant={u.is_active ? 'default' : 'secondary'}>
                                 {u.is_active ? 'Active' : 'Inactive'}
                               </Badge>
                             )}
@@ -1528,17 +1509,17 @@ const ApplicationUsers = () => {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Subscription Upgrade Required</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Adding this {selectedRole} user will exceed your current seat limit. Your subscription will be automatically upgraded.
-                </AlertDialogDescription>
+                              <AlertDialogDescription>
+                Adding this {selectedRole} user will exceed your current user limit. Your subscription will be automatically upgraded.
+              </AlertDialogDescription>
                 {upgradeInfo && (
                   <div className="bg-muted p-4 rounded-lg space-y-2 mt-3">
                     <div className="flex justify-between">
-                      <span>Current seats:</span>
+                      <span>Current users:</span>
                       <span>{upgradeInfo.currentSeats}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>New seats:</span>
+                      <span>New users:</span>
                       <span>{upgradeInfo.newSeats}</span>
                     </div>
                     <div className="flex justify-between">
