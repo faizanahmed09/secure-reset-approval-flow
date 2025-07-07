@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,26 +32,44 @@ import {
 interface SubscriptionStatusProps {
   userId?: string;
   showManagement?: boolean;
+  subscriptionStatus?: SubscriptionStatus | null;
+  isLoading?: boolean;
 }
 
 const SubscriptionStatusComponent = ({ 
   userId, 
-  showManagement = true 
+  showManagement = true,
+  subscriptionStatus: propSubscriptionStatus,
+  isLoading: propIsLoading 
 }: SubscriptionStatusProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(propSubscriptionStatus || null);
+  const [loading, setLoading] = useState(propIsLoading !== undefined ? propIsLoading : true);
   const [redirectingToPortal, setRedirectingToPortal] = useState(false);
   const [userCount, setUserCount] = useState<number>(1);
 
   const targetUserId = userId || user?.id;
 
+  // Update local state when props change
   useEffect(() => {
-    if (targetUserId) {
+    if (propSubscriptionStatus !== undefined) {
+      setSubscriptionStatus(propSubscriptionStatus);
+    }
+  }, [propSubscriptionStatus]);
+
+  useEffect(() => {
+    if (propIsLoading !== undefined) {
+      setLoading(propIsLoading);
+    }
+  }, [propIsLoading]);
+
+  useEffect(() => {
+    // Only fetch if no subscription status provided as prop
+    if (targetUserId && propSubscriptionStatus === undefined) {
       fetchSubscriptionStatus();
     }
-  }, [targetUserId]);
+  }, [targetUserId, propSubscriptionStatus]);
 
   const fetchSubscriptionStatus = async () => {
     if (!targetUserId) return;
@@ -331,4 +349,4 @@ const SubscriptionStatusComponent = ({
   );
 };
 
-export default SubscriptionStatusComponent;
+export default memo(SubscriptionStatusComponent);

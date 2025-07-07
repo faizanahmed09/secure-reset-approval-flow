@@ -8,7 +8,7 @@ import Link from 'next/link';
 import SubscriptionStatusComponent from '@/components/SubscriptionStatus';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
 import { BeautifulLoader } from '@/app/loader';
-import { getSubscriptionStatus, SubscriptionStatus } from '@/services/subscriptionService';
+import { getSubscriptionStatus, getSubscriptionPlans, SubscriptionStatus } from '@/services/subscriptionService';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -16,6 +16,8 @@ const SubscriptionPage = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [subStatusLoading, setSubStatusLoading] = useState(true);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
 
   // Handle redirect for unauthenticated users
   useEffect(() => {
@@ -24,22 +26,36 @@ const SubscriptionPage = () => {
     }
   }, [isLoading, isAuthenticated]);
 
+  // Single useEffect to fetch all data at once
   useEffect(() => {
-    const fetchStatus = async () => {
-      if (user?.id) {
-        setSubStatusLoading(true);
-        try {
-          const status = await getSubscriptionStatus(user.id);
-          setSubscriptionStatus(status);
-        } finally {
-          setSubStatusLoading(false);
-        }
+    const fetchAllData = async () => {
+      if (!user?.id) return;
+
+      setSubStatusLoading(true);
+      setPlansLoading(true);
+
+      try {
+        // Fetch both subscription status and plans in parallel
+        const [status, availablePlans] = await Promise.all([
+          getSubscriptionStatus(user.id),
+          getSubscriptionPlans()
+        ]);
+
+        setSubscriptionStatus(status);
+        setPlans(availablePlans);
+      } catch (error) {
+        console.error('Error fetching subscription data:', error);
+        setPlans([]);
+      } finally {
+        setSubStatusLoading(false);
+        setPlansLoading(false);
       }
     };
-    fetchStatus();
-  }, [user]);
 
-  if (isLoading || subStatusLoading) {
+    fetchAllData();
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-fetches
+
+  if (isLoading || subStatusLoading || plansLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
         <BeautifulLoader />
@@ -93,7 +109,12 @@ const SubscriptionPage = () => {
           </div>
           
           <div className="transform hover:scale-[1.02] transition-transform duration-300">
-            <SubscriptionStatusComponent userId={user?.id} showManagement={true} />
+            <SubscriptionStatusComponent 
+              userId={user?.id} 
+              showManagement={true} 
+              subscriptionStatus={subscriptionStatus}
+              isLoading={subStatusLoading}
+            />
           </div>
         </div>
 
@@ -113,7 +134,7 @@ const SubscriptionPage = () => {
           
           <div className="relative">
             <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200/50 shadow-xl">
-              <SubscriptionPlans subscriptionStatus={subscriptionStatus} plans={[]} />
+              <SubscriptionPlans subscriptionStatus={subscriptionStatus} plans={plans} />
             </div>
           </div>
         </div>

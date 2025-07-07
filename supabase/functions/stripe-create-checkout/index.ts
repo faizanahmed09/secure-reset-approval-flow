@@ -68,6 +68,16 @@ serve(async (req) => {
         .eq('organization_id', organizationId)
     }
 
+    // Determine plan name based on price ID
+    let planName = 'BASIC' // Default fallback
+    if (priceId === 'price_1RhDSy07fQQSE43Cy1zlZZ14') {
+      planName = 'BASIC'
+    } else if (priceId === 'price_1RhDUU07fQQSE43Cgfdj9p6k') {
+      planName = 'PROFESSIONAL'
+    } else if (priceId === 'price_1RhDWO07fQQSE43CRL3LrPrU') {
+      planName = 'ENTERPRISE'
+    }
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
@@ -84,14 +94,14 @@ serve(async (req) => {
       metadata: {
         user_id: userId,
         organization_id: organizationId,
-        plan_name: 'STARTER', // Hardcoded since we only have one plan
+        plan_name: planName,
         user_count: subscriptionQuantity.toString(),
       },
       subscription_data: {
         metadata: {
           user_id: userId,
           organization_id: organizationId,
-          plan_name: 'STARTER',
+          plan_name: planName,
           user_count: subscriptionQuantity.toString(),
         },
       },

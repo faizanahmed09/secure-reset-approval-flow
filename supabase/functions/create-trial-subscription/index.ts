@@ -55,7 +55,7 @@ serve(async (req) => {
     // Create trial subscription
     const trialStartDate = new Date()
     const trialEndDate = new Date()
-    trialEndDate.setDate(trialStartDate.getDate() + 15) // 15 days trial
+    trialEndDate.setDate(trialStartDate.getDate() + 14) // 14 days trial
 
     const { data: newSubscription, error } = await supabaseClient
       .from('subscriptions')
@@ -77,7 +77,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         subscriptionId: newSubscription.id,
-        message: '15-day trial subscription created successfully'
+        message: '14-day trial subscription created successfully'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

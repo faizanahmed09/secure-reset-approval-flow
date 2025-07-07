@@ -198,7 +198,19 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
     console.log('🎯 WEBHOOK DECISION: Making dynamic decision based on Stripe status')
     console.log('📝 Action based on Stripe status:')
     
-    let planName = 'STARTER'
+    // Determine plan name based on Stripe price ID
+    const priceId = subscription.items.data[0]?.price.id
+    let planName = 'BASIC' // Default fallback
+    
+    // Map Stripe price IDs to plan names
+    if (priceId === 'price_1RhDSy07fQQSE43Cy1zlZZ14') {
+      planName = 'BASIC'
+    } else if (priceId === 'price_1RhDUU07fQQSE43Cgfdj9p6k') {
+      planName = 'PROFESSIONAL'
+    } else if (priceId === 'price_1RhDWO07fQQSE43CRL3LrPrU') {
+      planName = 'ENTERPRISE'
+    }
+    
     let dbStatus = subscription.status
     
     if (subscription.status === 'unpaid') {
@@ -208,14 +220,11 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
       console.log('🚨 STATUS IS CANCELED - Setting to RESTRICTED plan and canceled status')
       planName = 'RESTRICTED'
     } else if (subscription.status === 'past_due') {
-      console.log('⚠️  STATUS IS PAST_DUE - Keeping STARTER but marking as past_due')
-      planName = 'STARTER'
+      console.log(`⚠️  STATUS IS PAST_DUE - Keeping ${planName} but marking as past_due`)
     } else if (subscription.status === 'active') {
-      console.log('✅ STATUS IS ACTIVE - Setting to STARTER/active')
-      planName = 'STARTER'
+      console.log(`✅ STATUS IS ACTIVE - Setting to ${planName}/active`)
     } else {
-      console.log(`🔍 UNKNOWN STATUS: ${subscription.status} - Defaulting to STARTER but keeping actual status`)
-      planName = 'STARTER'
+      console.log(`🔍 UNKNOWN STATUS: ${subscription.status} - Using ${planName} but keeping actual status`)
     }
 
     // Handle missing period dates with fallbacks

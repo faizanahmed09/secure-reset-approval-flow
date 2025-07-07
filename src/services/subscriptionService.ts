@@ -1,17 +1,17 @@
 const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
 
-// Hardcoded plan details since we only have one tier
-export const STARTER_PLAN: SubscriptionPlan = {
-  id: 'starter',
-  name: 'Starter',
+// Dynamic plan details from Stripe
+export const BASIC_PLAN: SubscriptionPlan = {
+  id: 'basic',
+  name: 'Basic',
   description: 'Perfect for small teams',
-  stripe_price_id: 'price_1RdR3KQQYT43sTsGELq040lh',
-  stripe_product_id: 'prod_SYY9qih3qsHwX2',
+  stripe_price_id: 'price_1RhDSy07fQQSE43Cy1zlZZ14',
+  stripe_product_id: 'prod_ScSNiw3Cw9404l',
   amount: 900, // $9.00 in cents
   currency: 'usd',
   interval: 'month',
   interval_count: 1,
-  trial_period_days: 15,
+  trial_period_days: 14,
   max_users: null, // unlimited
   features: {
     push_verifications: 'unlimited',
@@ -19,6 +19,53 @@ export const STARTER_PLAN: SubscriptionPlan = {
     sso: true
   },
   formatted_price: '$9',
+  billing_interval: 'per month'
+};
+
+// Additional plans for future use
+export const PROFESSIONAL_PLAN: SubscriptionPlan = {
+  id: 'professional',
+  name: 'Professional',
+  description: 'Advanced features for growing teams',
+  stripe_price_id: 'price_1RhDUU07fQQSE43Cgfdj9p6k',
+  stripe_product_id: 'prod_ScSPl9xaR3f8si',
+  amount: 1900, // $19.00 in cents
+  currency: 'usd',
+  interval: 'month',
+  interval_count: 1,
+  trial_period_days: 14,
+  max_users: null, // unlimited
+  features: {
+    push_verifications: 'unlimited',
+    sms_verifications: true,
+    log_retention: '1 year',
+    sso: true
+  },
+  formatted_price: '$19',
+  billing_interval: 'per month'
+};
+
+export const ENTERPRISE_PLAN: SubscriptionPlan = {
+  id: 'enterprise',
+  name: 'Enterprise',
+  description: 'Enterprise-grade security and support',
+  stripe_price_id: 'price_1RhDWO07fQQSE43CRL3LrPrU',
+  stripe_product_id: 'prod_ScSR8NhgmmS471',
+  amount: 2900, // $29.00 in cents
+  currency: 'usd',
+  interval: 'month',
+  interval_count: 1,
+  trial_period_days: 14,
+  max_users: null, // unlimited
+  features: {
+    push_verifications: 'unlimited',
+    teams_verification: true,
+    sms_verifications: true,
+    syslog_integration: true,
+    log_retention: '1 year',
+    sso: true
+  },
+  formatted_price: '$29',
   billing_interval: 'per month'
 };
 
@@ -56,7 +103,7 @@ export interface Subscription {
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
   stripe_price_id?: string;
-  plan_name: 'TRIAL' | 'STARTER' | 'RESTRICTED';
+  plan_name: 'TRIAL' | 'BASIC' | 'PROFESSIONAL' | 'ENTERPRISE' | 'RESTRICTED';
   status: string;
   user_count: number; // Number of seats subscribed for
   trial_start_date?: string;
@@ -94,11 +141,33 @@ export interface SubscriptionStatus {
 }
 
 /**
- * Get the single available subscription plan (hardcoded)
+ * Get available subscription plans (dynamic from Stripe)
  */
 export const getSubscriptionPlans = async (): Promise<SubscriptionPlan[]> => {
-  // Return hardcoded plan since we only have one tier
-  return [STARTER_PLAN];
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/stripe-get-plans`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch plans: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch plans');
+    }
+
+    return data.plans || [];
+  } catch (error) {
+    console.error('Error fetching dynamic plans, falling back to hardcoded Basic plan:', error);
+    // Fallback to hardcoded Basic plan if dynamic fetch fails
+    return [BASIC_PLAN];
+  }
 };
 
 /**

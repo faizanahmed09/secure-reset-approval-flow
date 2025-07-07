@@ -97,9 +97,15 @@ const ChangeRequestsLog = () => {
           .from('change_requests')
           .select('id', { count: 'exact', head: true })
           .eq('tenant_id', tenantId);
-        // Only apply retention for STARTER or TRIAL plan
-        if (subscriptionPlan === 'STARTER' || subscriptionPlan === 'TRIAL') {
+        // Apply retention based on plan type
+        if (subscriptionPlan === 'BASIC' || subscriptionPlan === 'TRIAL') {
+          // Basic/Trial: 3 months retention
           query = query.gte('created_at', retentionDateString);
+        } else if (subscriptionPlan === 'PROFESSIONAL' || subscriptionPlan === 'ENTERPRISE') {
+          // Professional/Enterprise: 1 year retention
+          const oneYearAgo = new Date();
+          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+          query = query.gte('created_at', oneYearAgo.toISOString());
         }
         if (filters.search) {
           query = query.or(
@@ -146,9 +152,15 @@ const ChangeRequestsLog = () => {
         .from('change_requests')
         .select('*')
         .eq('tenant_id', tenantId);
-      // Only apply retention for STARTER or TRIAL plan
-      if (subscriptionPlan === 'STARTER' || subscriptionPlan === 'TRIAL') {
+      // Apply retention based on plan type  
+      if (subscriptionPlan === 'BASIC' || subscriptionPlan === 'TRIAL') {
+        // Basic/Trial: 3 months retention
         query = query.gte('created_at', retentionDateString);
+      } else if (subscriptionPlan === 'PROFESSIONAL' || subscriptionPlan === 'ENTERPRISE') {
+        // Professional/Enterprise: 1 year retention
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        query = query.gte('created_at', oneYearAgo.toISOString());
       }
       query = query.order(filters.sortBy, { ascending: filters.sortOrder === 'asc' })
         .range(from, to);

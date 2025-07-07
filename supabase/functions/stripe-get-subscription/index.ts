@@ -100,13 +100,13 @@ serve(async (req) => {
 
     // Format plan details
     let planDetails = null
-    if (subscription.plan_name === 'STARTER') {
+    if (subscription.plan_name === 'BASIC') {
       // Use stored user count from database, fallback to 1
       const userCount = subscription.user_count || 1
       const totalAmount = userCount * 900 // $9 per user in cents
       
       planDetails = {
-        name: 'Starter',
+        name: 'Basic',
         description: 'Perfect for small teams',
         amount: totalAmount,
         currency: 'usd',
@@ -122,7 +122,7 @@ serve(async (req) => {
     } else if (subscription.plan_name === 'TRIAL') {
       planDetails = {
         name: 'Trial',
-        description: '15-day free trial',
+        description: '14-day free trial',
         amount: 0,
         currency: 'usd',
         interval: 'trial',

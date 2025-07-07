@@ -50,7 +50,7 @@ const SubscriptionSuccessPage = () => {
     if (!subscription) return 'Not available';
     
     // For paid subscriptions, use current_period_end
-    if (subscription.plan_name === 'STARTER' && subscription.current_period_end) {
+    if (subscription.plan_name === 'BASIC' && subscription.current_period_end) {
       return new Date(subscription.current_period_end).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',

@@ -76,7 +76,7 @@ serve(async (req) => {
     let hasAccess = false
     let reason = ''
 
-    if (subscription.status === 'active' && subscription.plan_name === 'STARTER') {
+    if (subscription.status === 'active' && ['BASIC', 'PROFESSIONAL', 'ENTERPRISE'].includes(subscription.plan_name)) {
       // Active paid subscription
       hasAccess = true
     } else if (subscription.status === 'trialing' && subscription.plan_name === 'TRIAL') {
