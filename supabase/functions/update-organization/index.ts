@@ -1,74 +1,45 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
-};
+import { 
+  authenticateRequestFast,
+  requireRole,
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders
-    });
+  if (req.method === 'OPTIONS') {
+    return handleCorsPrelight();
   }
 
   try {
-    const body = await req.json();
-    const { organizationId, organizationName, userEmail } = body;
+    // Authenticate user with fast authentication
+    const authResult = await authenticateRequestFast(req);
+    const { user, dbUser } = authResult;
 
-    if (!organizationId || !organizationName || !userEmail) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: "Missing required fields: organizationId, organizationName, userEmail"
-      }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
-    }
-
+    // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: "Server configuration error"
-      }), {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
-    }
-
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user has permission to update organization (must be admin of this organization)
-    const { data: user, error: userError } = await supabase
-      .from("azure_users")
-      .select("id, role, organization_id")
-      .eq("email", userEmail)
-      .eq("organization_id", organizationId)
-      .eq("role", "admin")
-      .single();
+    // Require admin role for organization updates
+    try {
+      requireRole(dbUser, ['admin']);
+    } catch (roleError) {
+      return createErrorResponse(roleError.message, 403);
+    }
 
-    if (userError || !user) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: "Unauthorized: Only organization admins can update organization details"
-      }), {
-        status: 403,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
+    const { organizationId, organizationName } = await req.json();
+
+    if (!organizationId || !organizationName) {
+      return createErrorResponse("Missing required fields: organizationId, organizationName", 400);
+    }
+
+    // Ensure user can only update their own organization
+    if (dbUser.organization_id !== organizationId) {
+      return createErrorResponse("Access denied: Cannot update other organization", 403);
     }
 
     // Update organization
@@ -85,42 +56,16 @@ serve(async (req) => {
 
     if (updateError) {
       console.error("Error updating organization:", updateError);
-      return new Response(JSON.stringify({
-        success: false,
-        message: "Failed to update organization"
-      }), {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
+      return createErrorResponse("Failed to update organization", 500);
     }
 
-
-
-    return new Response(JSON.stringify({
-      success: true,
+    return createSuccessResponse({
       organization: updatedOrganization,
       message: "Organization updated successfully"
-    }), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
     });
 
   } catch (error) {
     console.error("Error processing request:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      message: "Internal server error"
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
-    });
+    return createErrorResponse("Internal server error", 500);
   }
 });

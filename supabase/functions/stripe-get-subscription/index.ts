@@ -1,21 +1,20 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
-    // Initialize Supabase
-    const supabaseClient = createClient(
+    // Initialize Supabase with anon key (this is an internal lookup function)
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     )
@@ -23,55 +22,37 @@ serve(async (req) => {
     const { userId } = await req.json()
 
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: userId' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createErrorResponse('Missing required field: userId', 400)
     }
 
     // Get user's organization
-    const { data: user, error: userError } = await supabaseClient
+    const { data: user, error: userError } = await supabase
       .from('azure_users')
       .select('organization_id')
       .eq('id', userId)
       .single()
 
     if (userError || !user?.organization_id) {
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          hasActiveSubscription: false,
-          isInTrial: false,
-          subscription: null
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createSuccessResponse({
+        hasActiveSubscription: false,
+        isInTrial: false,
+        subscription: null
+      })
     }
 
     // Get organization subscription
-    const { data: subscription, error: subscriptionError } = await supabaseClient
+    const { data: subscription, error: subscriptionError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('organization_id', user.organization_id)
       .single()
 
     if (subscriptionError || !subscription) {
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          hasActiveSubscription: false,
-          isInTrial: false,
-          subscription: null
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createSuccessResponse({
+        hasActiveSubscription: false,
+        isInTrial: false,
+        subscription: null
+      })
     }
 
     // Check if subscription is active (either trial or paid)
@@ -160,43 +141,31 @@ serve(async (req) => {
       stripe_price_id: subscription.stripe_price_id,
       plan_name: subscription.plan_name,
       status: subscription.status,
-      user_count: subscription.user_count || 1, // ✅ FIXED - Include user_count field
+      user_count: subscription.user_count || 1,
       trial_start_date: subscription.trial_start_date,
       trial_end_date: subscription.trial_end_date,
       current_period_start: subscription.current_period_start,
       current_period_end: subscription.current_period_end,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      cancel_at: subscription.cancel_at, // ✅ Include scheduled cancellation date
+      cancel_at: subscription.cancel_at,
       plan: planDetails,
       is_trial: isInTrial,
       trial_days_remaining: trialDaysRemaining,
       days_until_renewal: daysUntilRenewal,
     }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        hasActiveSubscription: isActiveSubscription,
-        isInTrial: isInTrial,
-        trialDaysRemaining: trialDaysRemaining,
-        subscription: formattedSubscription
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createSuccessResponse({
+      hasActiveSubscription: isActiveSubscription,
+      isInTrial: isInTrial,
+      trialDaysRemaining: trialDaysRemaining,
+      subscription: formattedSubscription
+    })
 
   } catch (error) {
     console.error('Error fetching subscription:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+    return createErrorResponse(
+      error instanceof Error ? error.message : String(error),
+      500
     )
   }
 })

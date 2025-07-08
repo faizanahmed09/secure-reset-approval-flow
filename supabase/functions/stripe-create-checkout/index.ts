@@ -2,16 +2,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
@@ -21,27 +20,21 @@ serve(async (req) => {
     })
 
     // Initialize Supabase
-    const supabaseClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     )
 
     const { priceId, userEmail, userId, organizationId, quantity, successUrl, cancelUrl } = await req.json()
-    if (!priceId || !userEmail || !userId || !organizationId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: priceId, userEmail, userId, organizationId' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+    if (!priceId || !userEmail || !userId || !organizationId || !successUrl || !cancelUrl) {
+      return createErrorResponse('Missing required fields: priceId, userEmail, userId, organizationId, successUrl, cancelUrl', 400)
     }
 
     // Default quantity to 1 if not provided
     const subscriptionQuantity = quantity || 1
 
     // Check if organization already has a customer ID
-    let { data: existingSubscription } = await supabaseClient
+    let { data: existingSubscription } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('organization_id', organizationId)
@@ -62,7 +55,7 @@ serve(async (req) => {
       stripeCustomerId = stripeCustomer.id
 
       // Update the subscription record with the customer ID
-      await supabaseClient
+      await supabase
         .from('subscriptions')
         .update({ stripe_customer_id: stripeCustomerId })
         .eq('organization_id', organizationId)
@@ -89,8 +82,8 @@ serve(async (req) => {
           quantity: subscriptionQuantity,
         },
       ],
-      success_url: successUrl || `${Deno.env.get('FRONTEND_URL_LOCAL')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${Deno.env.get('FRONTEND_URL_LOCAL')}/subscription/cancel`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: {
         user_id: userId,
         organization_id: organizationId,
@@ -109,25 +102,14 @@ serve(async (req) => {
       automatic_tax: { enabled: false }, // Set to true if you want automatic tax calculation
     })
 
-    return new Response(
-      JSON.stringify({ 
-        sessionId: session.id, 
-        url: session.url,
-        customerId: stripeCustomerId 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createSuccessResponse({
+      sessionId: session.id, 
+      url: session.url,
+      customerId: stripeCustomerId
+    })
 
   } catch (error) {
     console.error('Error creating checkout session:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createErrorResponse(error.message, 500)
   }
 }) 

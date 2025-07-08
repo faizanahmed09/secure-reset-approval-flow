@@ -1,78 +1,58 @@
-// ignore all typescript errors
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
-};
-serve(async (req: { method: string; json: () => any; })=>{
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders
-    });
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts";
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return handleCorsPrelight();
   }
+
   try {
+    // This is an internal service function - called by manage-user which handles authorization
     const body = await req.json();
     const { tenantId, clientId, accessToken, userDetails, organizationId } = body;
+
     // Validate incoming data
     if (!tenantId || !clientId || !accessToken || !userDetails || !organizationId) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: "Missing required parameters: tenantId, clientId, accessToken, userDetails, or organizationId"
-      }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
+      return createErrorResponse(
+        "Missing required parameters: tenantId, clientId, accessToken, userDetails, or organizationId",
+        400
+      );
     }
+
     try {
       // Create the client secret
       const secretResult = await createMfaClientSecret(accessToken, tenantId);
+      
       // Store the secret in Supabase
       await storeMfaSecret(tenantId, clientId, secretResult, userDetails.email || "unknown", accessToken, organizationId);
+      
       // Return success response
-      return new Response(JSON.stringify({
-        success: true,
+      return createSuccessResponse({
         message: "MFA client secret generated and stored successfully",
         secretId: secretResult.keyId,
         expiresAt: secretResult.expiresAt
-      }), {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
       });
+
     } catch (error) {
       console.error("Error in MFA secret generation:", error);
-      return new Response(JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error during MFA secret generation"
-      }), {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      });
+      return createErrorResponse(
+        error instanceof Error ? error.message : "Unknown error during MFA secret generation",
+        500
+      );
     }
+
   } catch (error) {
     console.error("Error parsing request:", error);
-    return new Response(JSON.stringify({
-      success: false,
-      message: "Invalid request format"
-    }), {
-      status: 400,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
-    });
+    return createErrorResponse("Invalid request format", 400);
   }
 });
+
 // Function to create MFA client secret
 async function createMfaClientSecret(accessToken: any, tenantId: any) {
   // Step 1: Get the service principal ID for MFA application

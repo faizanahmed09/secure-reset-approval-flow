@@ -2,11 +2,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  authenticateRequestFast,
+  requireRole,
+  requireOrganization,
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 interface UpdateQuantityRequest {
   organization_id: string
@@ -15,35 +18,48 @@ interface UpdateQuantityRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
-    })
+    // Authenticate user with fast authentication
+    const authResult = await authenticateRequestFast(req)
+    const { user, dbUser } = authResult
 
-    // Initialize Supabase
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || ""
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Require admin role for subscription changes
+    try {
+      requireRole(dbUser, ['admin'])
+    } catch (roleError) {
+      return createErrorResponse(roleError.message, 403)
+    }
 
     if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+      return createErrorResponse('Method not allowed', 405)
     }
 
     const { organization_id, new_user_count, proration_behavior = 'always_invoice' }: UpdateQuantityRequest = await req.json()
 
     if (!organization_id || !new_user_count || new_user_count < 1) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid organization_id or new_user_count' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return createErrorResponse('Invalid organization_id or new_user_count', 400)
     }
+
+    // Ensure user can only access their organization
+    try {
+      requireOrganization(dbUser, organization_id)
+    } catch (orgError) {
+      return createErrorResponse(orgError.message, 403)
+    }
+
+    // Initialize Stripe
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
+    })
 
     console.log(`=== UPDATING SUBSCRIPTION QUANTITY ===`)
     console.log(`Organization ID: ${organization_id}`)
@@ -51,7 +67,7 @@ serve(async (req) => {
     console.log(`Proration behavior: ${proration_behavior}`)
 
     // Get current subscription
-    const { data: subscription, error: fetchError } = await supabaseClient
+    const { data: subscription, error: fetchError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('organization_id', organization_id)
@@ -59,10 +75,7 @@ serve(async (req) => {
 
     if (fetchError || !subscription) {
       console.error('❌ Subscription not found:', fetchError)
-      return new Response(
-        JSON.stringify({ error: 'Subscription not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return createErrorResponse('Subscription not found', 404)
     }
 
     console.log(`Current subscription:`)
@@ -74,14 +87,10 @@ serve(async (req) => {
     // Check if subscription is active and has Stripe ID
     if (!subscription.stripe_subscription_id || subscription.status !== 'active') {
       console.error('❌ Cannot update inactive subscription or trial')
-      return new Response(
-        JSON.stringify({ 
-          error: 'Cannot update quantity for inactive subscription or trial',
-          current_status: subscription.status,
-          plan: subscription.plan_name
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return createErrorResponse('Cannot update quantity for inactive subscription or trial', 400, {
+        current_status: subscription.status,
+        plan: subscription.plan_name
+      })
     }
 
     // Get Stripe subscription details
@@ -89,10 +98,7 @@ serve(async (req) => {
     
     if (!stripeSubscription.items.data[0]) {
       console.error('❌ No subscription items found')
-      return new Response(
-        JSON.stringify({ error: 'No subscription items found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return createErrorResponse('No subscription items found', 400)
     }
 
     const subscriptionItem = stripeSubscription.items.data[0]
@@ -134,7 +140,7 @@ serve(async (req) => {
     }
 
     // Update local database
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
         user_count: new_user_count,
@@ -145,47 +151,29 @@ serve(async (req) => {
     if (updateError) {
       console.error('❌ Error updating local database:', updateError)
       // Stripe was updated successfully, but local DB failed
-      return new Response(
-        JSON.stringify({ 
-          error: 'Stripe updated but local database update failed',
-          stripe_updated: true,
-          db_error: updateError.message
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return createErrorResponse('Stripe updated but local database update failed', 500, {
+        stripe_updated: true,
+        db_error: updateError.message
+      })
     }
 
     console.log(`✅ Local database updated successfully`)
     console.log(`=== END QUANTITY UPDATE ===`)
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        organization_id,
-        old_user_count: subscription.user_count,
-        new_user_count,
-        proration_behavior,
-        proration_details: prorationDetails,
-        stripe_subscription_id: subscription.stripe_subscription_id,
-        updated_at: new Date().toISOString()
-      }),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return createSuccessResponse({
+      organization_id,
+      old_user_count: subscription.user_count,
+      new_user_count,
+      proration_behavior,
+      proration_details: prorationDetails,
+      stripe_subscription_id: subscription.stripe_subscription_id,
+      updated_at: new Date().toISOString()
+    })
 
   } catch (error) {
     console.error('❌ Error updating subscription quantity:', error)
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        type: 'update_quantity_error'
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
+    return createErrorResponse(error.message, 500, {
+      type: 'update_quantity_error'
+    })
   }
 }) 

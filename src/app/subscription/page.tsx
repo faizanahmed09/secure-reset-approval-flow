@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, Sparkles, Star, AlertCircle, RefreshCw } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import SubscriptionStatusComponent from '@/components/SubscriptionStatus';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
@@ -14,10 +16,17 @@ import Footer from '@/components/Footer';
 
 const SubscriptionPage = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [subStatusLoading, setSubStatusLoading] = useState(true);
   const [plans, setPlans] = useState<any[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const [showProcessingAlert, setShowProcessingAlert] = useState(false);
+  
+  // Check if user came from a successful payment
+  const fromSuccess = searchParams.get('from') === 'success';
+  const sessionId = searchParams.get('session_id');
 
   // Handle redirect for unauthenticated users
   useEffect(() => {
@@ -43,6 +52,20 @@ const SubscriptionPage = () => {
 
         setSubscriptionStatus(status);
         setPlans(availablePlans);
+        
+        // If user came from payment success but still shows TRIAL, start polling
+        if (fromSuccess && sessionId && status.subscription?.plan_name === 'TRIAL' && retryCount < 6) {
+          setShowProcessingAlert(true);
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            fetchAllData();
+          }, 5000); // Check every 5 seconds
+        } else if (fromSuccess && status.subscription?.plan_name !== 'TRIAL') {
+          // Payment processed successfully
+          setShowProcessingAlert(false);
+        } else {
+          setShowProcessingAlert(false);
+        }
       } catch (error) {
         console.error('Error fetching subscription data:', error);
         setPlans([]);
@@ -53,7 +76,7 @@ const SubscriptionPage = () => {
     };
 
     fetchAllData();
-  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-fetches
+  }, [user?.id, retryCount]); // Depend on retryCount for polling
 
   if (isLoading || subStatusLoading || plansLoading) {
     return (
@@ -98,6 +121,44 @@ const SubscriptionPage = () => {
             <p className="text-gray-600">Control your billing and subscription preferences</p>
           </div>
         </div>
+
+        {/* Payment Processing Alert */}
+        {showProcessingAlert && (
+          <Alert className="mb-8 border-yellow-200 bg-yellow-50">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-yellow-600 animate-spin" />
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+            </div>
+            <AlertDescription className="text-yellow-800">
+              <div className="flex items-start justify-between">
+                <div>
+                  <strong>Payment Processing</strong>
+                  <p className="text-sm mt-1">
+                    Your payment was successful! We're updating your subscription status. 
+                    This usually takes a few moments. ({retryCount}/6 checks)
+                  </p>
+                  {sessionId && (
+                    <p className="text-xs text-yellow-600 mt-2">
+                      Session ID: {sessionId}
+                    </p>
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setRetryCount(0);
+                    window.location.reload();
+                  }}
+                  className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Current Subscription Status */}
         <div className="mb-16">

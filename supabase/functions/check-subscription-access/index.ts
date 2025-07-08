@@ -1,21 +1,20 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
-    // Initialize Supabase
-    const supabaseClient = createClient(
+    // Initialize Supabase with service role key for internal operations
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
@@ -23,51 +22,35 @@ serve(async (req) => {
     const { userId } = await req.json()
 
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: userId' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createErrorResponse('Missing required field: userId', 400)
     }
 
     // Get user's organization
-    const { data: user, error: userError } = await supabaseClient
+    const { data: user, error: userError } = await supabase
       .from('azure_users')
       .select('organization_id')
       .eq('id', userId)
       .single()
 
     if (userError || !user?.organization_id) {
-      return new Response(
-        JSON.stringify({ 
-          hasAccess: false,
-          reason: 'User not found or no organization'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createSuccessResponse({
+        hasAccess: false,
+        reason: 'User not found or no organization'
+      })
     }
 
     // Get organization subscription
-    const { data: subscription, error: subscriptionError } = await supabaseClient
+    const { data: subscription, error: subscriptionError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('organization_id', user.organization_id)
       .single()
 
     if (subscriptionError || !subscription) {
-      return new Response(
-        JSON.stringify({ 
-          hasAccess: false,
-          reason: 'No subscription found'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createSuccessResponse({
+        hasAccess: false,
+        reason: 'No subscription found'
+      })
     }
 
     const now = new Date()
@@ -85,7 +68,7 @@ serve(async (req) => {
         hasAccess = true
       } else {
         // Trial has expired - update to RESTRICTED
-        const { error: updateError } = await supabaseClient
+        const { error: updateError } = await supabase
           .from('subscriptions')
           .update({
             plan_name: 'RESTRICTED',
@@ -109,33 +92,20 @@ serve(async (req) => {
       reason = 'Invalid subscription status'
     }
 
-    return new Response(
-      JSON.stringify({ 
-        hasAccess,
-        reason,
-        subscription: {
-          plan_name: subscription.plan_name,
-          status: subscription.status,
-          trial_end_date: subscription.trial_end_date
-        }
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    return createSuccessResponse({
+      hasAccess,
+      reason,
+      subscription: {
+        plan_name: subscription.plan_name,
+        status: subscription.status,
+        trial_end_date: subscription.trial_end_date
       }
-    )
+    })
 
   } catch (error) {
     console.error('Error checking subscription access:', error)
-    return new Response(
-      JSON.stringify({ 
-        hasAccess: false,
-        reason: 'Internal error',
-        error: error instanceof Error ? error.message : String(error)
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createErrorResponse('Internal error', 500, {
+      error: error instanceof Error ? error.message : String(error)
+    })
   }
 }) 

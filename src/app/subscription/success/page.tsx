@@ -31,14 +31,15 @@ const SubscriptionSuccessPage = () => {
       const status = await getSubscriptionStatus(user.id);
       setSubscription(status.subscription);
       
-      // If still showing trial and we haven't hit max retries, keep checking
-      if (status.subscription?.plan_name === 'TRIAL' && retryCount < maxRetries) {
+      // Always set loading to false after first successful fetch
+      setLoading(false);
+      
+      // If still showing trial and we haven't hit max retries, keep checking in background
+      if (status.subscription?.plan_name === 'TRIAL' && sessionId && retryCount < maxRetries) {
         setTimeout(() => {
           setRetryCount(prev => prev + 1);
           fetchSubscription();
         }, 5000); // Check every 5 seconds
-      } else {
-        setLoading(false);
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
@@ -95,20 +96,10 @@ const SubscriptionSuccessPage = () => {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {loading || isStillProcessing ? (
+          {loading && !subscription ? (
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">
-                {isStillProcessing 
-                  ? `Checking subscription status... (${retryCount + 1}/${maxRetries + 1})` 
-                  : 'Setting up your subscription...'
-                }
-              </p>
-              {isStillProcessing && (
-                <p className="text-sm text-gray-500 mt-2">
-                  This may take up to 30 seconds. Your payment was successful.
-                </p>
-              )}
+              <p className="text-gray-600">Setting up your subscription...</p>
             </div>
           ) : subscription ? (
             <div className="bg-gray-50 rounded-lg p-6 space-y-4">
@@ -139,21 +130,22 @@ const SubscriptionSuccessPage = () => {
                 </div>
               </div>
               
-              {subscription.plan_name === 'TRIAL' && sessionId && (
+              {isStillProcessing && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
                   <div className="flex items-start space-x-3">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                    </div>
                     <div>
                       <h4 className="font-medium text-yellow-800">Subscription Processing</h4>
                       <p className="text-sm text-yellow-700 mt-1">
-                        Your payment was successful, but we're still processing your subscription upgrade. 
-                        This usually takes a few moments. You can refresh this page or check back shortly.
+                        Your payment was successful! We're still processing your subscription upgrade. 
+                        This usually takes a few moments. ({retryCount + 1}/{maxRetries + 1} checks)
                       </p>
-                      {sessionId && (
-                        <p className="text-xs text-yellow-600 mt-2">
-                          Session ID: {sessionId}
-                        </p>
-                      )}
+                      <p className="text-xs text-yellow-600 mt-2">
+                        Session ID: {sessionId}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -178,7 +170,7 @@ const SubscriptionSuccessPage = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/subscription" className="flex-1">
+            <Link href={`/subscription?from=success${sessionId ? `&session_id=${sessionId}` : ''}`} className="flex-1">
               <Button className="w-full">
                 Manage Subscription
                 <ArrowRight className="h-4 w-4 ml-2" />

@@ -78,6 +78,7 @@ const ApplicationUsers = () => {
   const { isTokenValid, validateTokens, isValidating } = useTokenValidation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<EditingUser | null>(null);
   const [saving, setSaving] = useState(false);
   
@@ -115,11 +116,19 @@ const ApplicationUsers = () => {
     if (isAuthenticated && user) {
       // Fetch both subscription and users, then calculate user allocation
       const loadData = async () => {
-        await Promise.all([
-          fetchUsers(),
-          fetchSubscriptionInfo(),
-          fetchBillingUserCount()
-        ]);
+        try {
+          setInitialLoading(true);
+          await Promise.all([
+            fetchUsers(),
+            fetchSubscriptionInfo(),
+            fetchBillingUserCount()
+          ]);
+        } catch (error) {
+          console.error('Error loading initial data:', error);
+        } finally {
+          setInitialLoading(false);
+          setLoading(false); // Ensure loading is false after initial load
+        }
       };
       
       loadData();
@@ -134,11 +143,6 @@ const ApplicationUsers = () => {
   useEffect(() => {
     if (subscription && billingUserCount >= 0) {
       const newSeatInfo = calculateSeatInfo(subscription, billingUserCount);
-      console.log('User info calculated:', {
-        subscription: subscription,
-        billingUserCount,
-        newSeatInfo
-      });
       setSeatInfo(newSeatInfo);
     }
   }, [subscription, billingUserCount]);
@@ -154,7 +158,6 @@ const ApplicationUsers = () => {
         
         // If no tokens, redirect to index page
         if (!idToken && !accessToken) {
-          console.log('No authentication tokens found, redirecting to index page');
           toast({
             title: 'Session Expired',
             description: 'Your session has expired. Redirecting to login...',
@@ -209,7 +212,10 @@ const ApplicationUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      // Only set loading state if this is not part of initial load
+      if (!initialLoading) {
+        setLoading(true);
+      }
       
       if (!user?.organization_id) {
         throw new Error('No organization found');
@@ -227,7 +233,10 @@ const ApplicationUsers = () => {
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      // Only clear loading state if this is not part of initial load
+      if (!initialLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -252,7 +261,6 @@ const ApplicationUsers = () => {
     
     try {
       const countData = await getOrganizationUserCount(user.organization_id);
-      console.log('Billing user count fetched:', countData);
       setBillingUserCount(countData.userCount); // Only admin + verifier users
     } catch (error) {
       console.error('Error fetching billing user count:', error);
@@ -520,19 +528,11 @@ const ApplicationUsers = () => {
           return;
         }
         // If subscription is canceled but still within active period, allow user creation
-        console.log('🟡 Subscription is canceled but still active until:', currentPeriodEnd.toLocaleDateString());
       }
       
-      // Check if we need to show upgrade confirmation modal first
-      if (subscription && seatInfo) {
-        console.log('User check:', {
-          availableSeats: seatInfo.availableSeats,
-          billingUserCount,
-          subscribedSeats: subscription.user_count,
-          seatInfo
-        });
-        
-        if (seatInfo.availableSeats <= 0) {
+              // Check if we need to show upgrade confirmation modal first
+        if (subscription && seatInfo) {
+          if (seatInfo.availableSeats <= 0) {
           // Close the add user dialog and show upgrade confirmation dialog
           setShowAddUserDialog(false);
           
@@ -568,8 +568,6 @@ const ApplicationUsers = () => {
       
       // Check user availability for admin/verifier users and handle automatic upgrades (skip during trial)
       if (subscription && subscription.plan_name !== 'TRIAL' && seatInfo && (selectedRole === 'admin' || selectedRole === 'verifier')) {
-        console.log('🔄 Checking user availability and handling upgrades...');
-        
         const seatResult = await seatManagerAddUser(
           user.organization_id,
           subscription,
@@ -594,8 +592,6 @@ const ApplicationUsers = () => {
         }
       }
       
-      console.log('🔄 Creating user in database...');
-      
       // Create the user in database
       const newUser = await createDatabaseUser(
         azureUser,
@@ -604,8 +600,6 @@ const ApplicationUsers = () => {
         user.tenant_id,
         user.client_id
       );
-
-      console.log('✅ User created successfully');
 
       // Add to local state
       setUsers([newUser, ...users]);
@@ -674,8 +668,6 @@ const ApplicationUsers = () => {
       setCreatingUser(true);
       setShowUpgradeDialog(false);
       
-      console.log('🔄 Confirming upgrade and creating user...');
-      
       // Use automatic user manager to upgrade subscription
       const seatResult = await seatManagerAddUser(
         user.organization_id,
@@ -700,8 +692,6 @@ const ApplicationUsers = () => {
         });
       }
       
-      console.log('🔄 Creating user in database...');
-      
       // Create the user in database
       const newUser = await createDatabaseUser(
         pendingUser,
@@ -710,8 +700,6 @@ const ApplicationUsers = () => {
         user.tenant_id,
         user.client_id
       );
-
-      console.log('✅ User created successfully');
 
       // Add to local state
       setUsers([newUser, ...users]);
@@ -894,7 +882,7 @@ const ApplicationUsers = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
         <BeautifulLoader />
@@ -1329,7 +1317,7 @@ const ApplicationUsers = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {loading && !initialLoading ? (
                 <div className="flex justify-center py-8">
                   <BeautifulLoader />
                 </div>

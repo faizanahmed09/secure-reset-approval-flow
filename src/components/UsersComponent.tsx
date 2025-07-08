@@ -140,8 +140,10 @@ const UsersComponent = () => {
         return;
       }
 
-      if (!isAuthenticated || accounts.length === 0) {
-        console.log("Not authenticated, user should be redirected by parent page");
+      // Since parent page handles authentication, we can assume user is authenticated
+      // Only check if we have the minimum required data
+      if (accounts.length === 0) {
+        // Wait for accounts to be populated
         return;
       }
 
@@ -152,7 +154,7 @@ const UsersComponent = () => {
     };
 
     handleAuth();
-  }, [inProgress, isAuthenticated, accounts, instance]);
+  }, [inProgress, accounts, instance]);
 
   // Handle search input change
   useEffect(() => {

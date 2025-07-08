@@ -1,16 +1,15 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Stripe from 'https://esm.sh/stripe@14.21.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
@@ -58,30 +57,14 @@ serve(async (req) => {
       }
     })
 
-    // Show all active plans (for testing purposes)
+    // Show all active plans
     const activePlans = plans
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        plans: activePlans
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
+    return createSuccessResponse({
+      plans: activePlans
+    })
   } catch (error) {
     console.error('Error fetching plans:', error)
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
-    )
+    return createErrorResponse(error.message, 500)
   }
 }) 

@@ -59,7 +59,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       const alreadyInitialized = getMsalInitializedStatus();
       
       if (alreadyInitialized) {
-        console.log('🔄 MSAL already initialized in this session, skipping');
         if (isMounted) {
           setIsInitialized(true);
         }
@@ -67,29 +66,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        console.log('🔄 Starting MSAL initialization');
         // Initialize MSAL instance
         await msalInstance.initialize()
         
         // Mark as initialized in session storage
         setMsalInitializedStatus(true);
-        console.log('✅ MSAL initialization complete');
         
         // Add event callback for debugging and monitoring (only once)
         eventCallbackId = msalInstance.addEventCallback((event) => {
           // Only log important events to reduce noise
           if (event.eventType === EventType.LOGIN_SUCCESS) {
-            console.log('✅ MSAL Login Success:', event.payload);
             // Set active account on successful login
             const authResult = event.payload as any;
             if (authResult.account) {
               msalInstance.setActiveAccount(authResult.account);
-              console.log('✅ Active account set:', authResult.account.username);
             }
-          }
-          
-          if (event.eventType === EventType.ACQUIRE_TOKEN_SUCCESS) {
-            console.log('✅ MSAL Token Acquired Successfully');
           }
           
           if (event.eventType === EventType.LOGIN_FAILURE) {
@@ -99,22 +90,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
           if (event.eventType === EventType.ACQUIRE_TOKEN_FAILURE) {
             console.error('❌ MSAL Token Acquisition Failure:', event.error);
           }
-
-          // Log redirect events with less detail
-          if (event.eventType === EventType.HANDLE_REDIRECT_START) {
-            console.log('🔄 MSAL Redirect Start');
-          }
-          
-          if (event.eventType === EventType.HANDLE_REDIRECT_END) {
-            console.log('🔄 MSAL Redirect End');
-          }
         });
         
         // Set active account if accounts exist
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0 && !msalInstance.getActiveAccount()) {
           msalInstance.setActiveAccount(accounts[0]);
-          console.log('✅ Active account set from existing accounts:', accounts[0].username);
         }
         
         // Initialize token interceptor with MSAL instance and accounts
@@ -165,7 +146,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   if (!isInitialized) {
-    console.log('🔄 Showing MSAL initialization loader');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader text="Initializing authentication..." subtext="Please wait..." />

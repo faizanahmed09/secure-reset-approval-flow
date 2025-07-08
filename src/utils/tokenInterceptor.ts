@@ -138,8 +138,6 @@ export class TokenInterceptor {
         if (errorData.error?.code === 'InvalidAuthenticationToken' || 
             errorData.error?.message?.includes('token is expired')) {
           
-          console.log('Token expired during request, attempting refresh...');
-          
           // Clear the expired token
           if (typeof window !== 'undefined') {
             window.sessionStorage.removeItem('accessToken');
@@ -197,14 +195,12 @@ export class TokenInterceptor {
 
       // Check if ID token is expired
       if (idToken && this.isTokenExpired(idToken)) {
-        console.log('ID token is expired');
         this.clearStoredTokens();
         return false;
       }
 
       // Check if access token is expired and try to refresh
       if (accessToken && this.isTokenExpired(accessToken)) {
-        console.log('Access token is expired, attempting refresh...');
         try {
           await this.refreshAccessToken();
           return true;
@@ -241,7 +237,6 @@ export class TokenInterceptor {
    * Note: UI handling (modals, redirects) should be done by AuthContext
    */
   private prepareForReAuthentication(reason: string): void {
-    console.log(`Authentication required: ${reason}`);
     this.clearStoredTokens();
   }
 

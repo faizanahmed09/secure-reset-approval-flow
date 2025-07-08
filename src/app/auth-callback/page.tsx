@@ -65,7 +65,6 @@ export default function AuthCallback() {
         const originalHash = window.location.hash;
         
         if (!originalHash) {
-          console.log("No hash found in URL, redirecting to home");
           setTimeout(() => window.location.href = '/', 1000);
           return;
         }
@@ -78,15 +77,12 @@ export default function AuthCallback() {
 
         // Check if we have tokens directly (implicit flow)
         if (hashParams.id_token) {
-          console.log("Processing ID token from hash");
-          
           const processedUser = await processUserFromToken(
             hashParams.id_token, 
             hashParams.access_token
           );
           
           if (processedUser) {
-            console.log("User processed successfully, redirecting to admin portal");
             setTimeout(() => window.location.href = '/admin-portal', 500);
             return;
           } else {
@@ -95,8 +91,6 @@ export default function AuthCallback() {
         } 
         // Check if we have an authorization code (authorization code flow)
         else if (hashParams.code) {
-          console.log("Processing authorization code");
-          
           const codeVerifier = getCodeVerifier();
           if (!codeVerifier) {
             throw new Error("PKCE code verifier not found in session storage");
@@ -129,7 +123,6 @@ export default function AuthCallback() {
           }
 
           const tokenData = await tokenResponse.json();
-          console.log("Token exchange successful");
 
           // Process user with the exchanged tokens
           const processedUser = await processUserFromToken(
@@ -138,7 +131,6 @@ export default function AuthCallback() {
           );
           
           if (processedUser) {
-            console.log("User processed successfully, redirecting to admin portal");
             setTimeout(() => window.location.href = '/admin-portal', 500);
             return;
           } else {
@@ -153,7 +145,6 @@ export default function AuthCallback() {
         } 
         // No valid authentication parameters
         else {
-          console.log("No valid authentication parameters found");
           throw new Error("No authentication tokens found in URL");
         }
 

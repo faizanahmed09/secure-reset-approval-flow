@@ -1,21 +1,20 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
-    // Initialize Supabase
-    const supabaseClient = createClient(
+    // Initialize Supabase with service role key (this is an internal function)
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
@@ -23,17 +22,11 @@ serve(async (req) => {
     const { organizationId } = await req.json()
 
     if (!organizationId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: organizationId' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createErrorResponse("Missing required field: organizationId", 400)
     }
 
-    // Count admin and verifier users in the organization
-    const { data: users, error: userError } = await supabaseClient
+    // Count admin and verifier users in the organization with a single query
+    const { data: userCounts, error: userError } = await supabase
       .from('azure_users')
       .select('role')
       .eq('organization_id', organizationId)
@@ -41,56 +34,35 @@ serve(async (req) => {
 
     if (userError) {
       console.error('Error fetching organization users:', userError)
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to fetch organization users',
-          details: userError.message 
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createErrorResponse('Failed to fetch organization users', 500)
     }
 
-    const userCount = users ? users.length : 0
-    const adminCount = users ? users.filter(u => u.role === 'admin').length : 0
-    const verifierCount = users ? users.filter(u => u.role === 'verifier').length : 0
+    const userCount = userCounts ? userCounts.length : 0
+    const adminCount = userCounts ? userCounts.filter(u => u.role === 'admin').length : 0
+    const verifierCount = userCounts ? userCounts.filter(u => u.role === 'verifier').length : 0
 
     // Calculate pricing based on user count
     const basePrice = 9 // $9 per user
     const totalAmount = userCount * basePrice * 100 // Convert to cents
     const formattedPrice = `$${userCount * basePrice}`
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        userCount,
-        adminCount,
-        verifierCount,
-        pricing: {
-          basePrice,
-          totalAmount, // in cents
-          formattedPrice,
-          breakdown: `${userCount} users × $${basePrice} = ${formattedPrice}`
-        }
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    return createSuccessResponse({
+      userCount,
+      adminCount,
+      verifierCount,
+      pricing: {
+        basePrice,
+        totalAmount, // in cents
+        formattedPrice,
+        breakdown: `${userCount} users × $${basePrice} = ${formattedPrice}`
       }
-    )
+    })
 
   } catch (error) {
     console.error('Error getting organization user count:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+    return createErrorResponse(
+      error instanceof Error ? error.message : String(error),
+      500
     )
   }
 }) 

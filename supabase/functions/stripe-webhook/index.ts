@@ -1,30 +1,29 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Stripe from 'https://esm.sh/stripe@14.21.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight();
   }
 
   try {
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
-    })
+    });
 
     // Initialize Supabase
-    const supabaseClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
+    );
 
     const body = await req.text()
     const sig = req.headers.get('stripe-signature')
@@ -46,12 +45,12 @@ serve(async (req) => {
     console.log('=== END STRIPE WEBHOOK BODY ===\n')
 
     if (!sig) {
-      return new Response('No signature', { status: 400 })
+      return createErrorResponse('No signature', 400);
     }
 
-    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
+    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     if (!webhookSecret) {
-      return new Response('Webhook secret not configured', { status: 500 })
+      return createErrorResponse('Webhook secret not configured', 500);
     }
 
     let event
@@ -62,52 +61,44 @@ serve(async (req) => {
         webhookSecret
       )
     } catch (err) {
-      console.error('Webhook signature verification failed:', err.message)
-      return new Response('Invalid signature', { status: 400 })
+      console.error('Webhook signature verification failed:', err.message);
+      return createErrorResponse('Invalid signature', 400);
     }
 
     // Handle the event
     switch (event.type) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, supabaseClient)
-        break
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, supabase);
+        break;
 
       case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, supabaseClient)
-        break
+        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, supabase);
+        break;
 
       case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, supabaseClient, stripe)
-        break
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, supabase, stripe);
+        break;
 
       case 'invoice.payment_succeeded':
-        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice, supabaseClient)
-        break
+        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice, supabase);
+        break;
 
       case 'invoice.payment_failed':
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice, supabaseClient)
-        break
+        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice, supabase);
+        break;
 
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return createSuccessResponse({ received: true });
 
   } catch (error) {
-    console.error('Webhook error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    )
+    console.error('Webhook error:', error);
+    return createErrorResponse(error.message, 500);
   }
-})
+});
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supabaseClient: any) {
   try {

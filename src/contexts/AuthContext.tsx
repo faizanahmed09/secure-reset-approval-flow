@@ -164,19 +164,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         window.sessionStorage.setItem('userProcessed', 'true');
         // Store MFA setup status
         if (result.mfaSetupStatus) {
-          console.log('Storing MFA setup status:', result.mfaSetupStatus);
           window.sessionStorage.setItem('mfaSetupStatus', result.mfaSetupStatus);
-        } else {
-          console.warn('No mfaSetupStatus in response:', result);
         }
       }
 
       // Update MFA setup status in state
       if (result.mfaSetupStatus) {
-        console.log('Setting MFA setup status in state:', result.mfaSetupStatus);
         setMfaSetupStatus(result.mfaSetupStatus);
-      } else {
-        console.warn('No mfaSetupStatus to set in state');
       }
 
       return result.user;
@@ -210,10 +204,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       // Load MFA setup status
       if (storedMfaStatus) {
-        console.log('Loading MFA setup status from sessionStorage:', storedMfaStatus);
         setMfaSetupStatus(storedMfaStatus as 'unknown' | 'success' | 'failed' | 'missing_service_principal');
-      } else {
-        console.log('No MFA setup status found in sessionStorage');
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -239,8 +230,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const isValid = await tokenInterceptor.validateAuthenticationState();
         
         if (!isValid) {
-          console.log('Token validation failed, showing session expired modal');
-          
           // Clear user state and show session expired modal
           setUser(null);
           setIsSessionExpired(true);
@@ -297,8 +286,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const handleLoginRedirect = useCallback(async (instance: IPublicClientApplication) => {
     setIsLoading(true);
     try {
-      console.log("Starting login redirect...");
-      
       // Clear any existing session data
       if (typeof window !== 'undefined') {
         window.sessionStorage.clear();

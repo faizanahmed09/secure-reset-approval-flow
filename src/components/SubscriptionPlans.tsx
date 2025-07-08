@@ -87,7 +87,7 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
         userId: user.id,
         organizationId: user.organization_id,
         quantity: userCount,
-        successUrl: `${window.location.origin}/subscription/success`,
+        successUrl: `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${window.location.origin}/subscription`,
       });
     } catch (error: any) {

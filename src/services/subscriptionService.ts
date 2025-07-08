@@ -179,8 +179,8 @@ export const createCheckoutSession = async (params: {
   userId: string;
   organizationId?: string;
   quantity?: number;
-  successUrl?: string;
-  cancelUrl?: string;
+  successUrl: string;
+  cancelUrl: string;
 }): Promise<{ sessionId: string; url: string; customerId: string }> => {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/stripe-create-checkout`, {
@@ -303,8 +303,8 @@ export const redirectToCheckout = async (params: {
   userId: string;
   organizationId?: string;
   quantity?: number;
-  successUrl?: string;
-  cancelUrl?: string;
+  successUrl: string;
+  cancelUrl: string;
 }): Promise<void> => {
   try {
     const { url } = await createCheckoutSession(params);
@@ -459,4 +459,6 @@ export const updateSubscriptionQuantity = async (
     throw error;
   }
 };
+
+
 

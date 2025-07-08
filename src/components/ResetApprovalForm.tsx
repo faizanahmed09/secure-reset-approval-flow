@@ -384,7 +384,7 @@ const ResetApprovalForm = ({ initialUserEmail }: ResetApprovalFormProps) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send MFA push");
+        throw new Error(errorData.message || errorData.error || "Failed to send MFA push");
       }
 
       const data = await response.json();

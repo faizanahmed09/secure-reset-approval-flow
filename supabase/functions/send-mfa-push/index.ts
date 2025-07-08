@@ -1,52 +1,37 @@
   // @ts-nocheck
   import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-  // CORS headers
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
+  import {
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse,
+  corsHeaders
+} from "../_shared/auth.ts";
 
   serve(async (req) => {
     if (req.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return handleCorsPrelight();
     }
 
     try {
+      // This is now an internal service function - validation is done via Azure accessToken
       const body = await req.json();
       const { email, userDetails, accessToken } = body;
 
-      // Validate incoming data
-      if (!email || !userDetails || !accessToken) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "Missing required parameters: email or userDetails",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
+              // Validate incoming data
+        if (!email || !userDetails || !accessToken) {
+          return createErrorResponse(
+            "Missing required parameters: email, userDetails, or accessToken",
+            400
+          );
+        }
 
       const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-      if (!supabaseUrl || !supabaseServiceKey) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "Server configuration error",
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
+              if (!supabaseUrl || !supabaseServiceKey) {
+          return createErrorResponse("Server configuration error", 500);
+        }
 
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -60,16 +45,10 @@
         .single();
 
       if (secretError || !secretData?.secret_value) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            message: "No MFA secret found for this tenant. Please generate one first.",
-            error_code: "NO_MFA_SECRET"
-          }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+        return createErrorResponse(
+          "No MFA secret found for this tenant. Please generate one first.",
+          404,
+          { error_code: "NO_MFA_SECRET" }
         );
       }
 
@@ -205,29 +184,23 @@
         );
       } catch (error) {
         console.error("Error in MFA process:", error);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error during MFA process",
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+        return createErrorResponse(
+          error instanceof Error ? error.message : "Unknown error during MFA process",
+          500
         );
       }
     } catch (error) {
-      console.error("Error parsing request:", error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Invalid request format",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      console.error("Authentication or processing error:", error);
+      
+      // Handle authentication errors specifically
+      if (error.message.includes('Authorization header') || 
+          error.message.includes('Token') ||
+          error.message.includes('User not found') ||
+          error.message.includes('permissions')) {
+        return createErrorResponse(error.message, 401);
+      }
+      
+      return createErrorResponse("Invalid request format or server error", 400);
     }
   });
 

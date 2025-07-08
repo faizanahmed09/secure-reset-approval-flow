@@ -1,21 +1,20 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts"
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return handleCorsPrelight()
   }
 
   try {
     // Initialize Supabase
-    const supabaseClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     )
@@ -23,17 +22,11 @@ serve(async (req) => {
     const { organizationId } = await req.json()
 
     if (!organizationId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: organizationId' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createErrorResponse('Missing required field: organizationId', 400)
     }
 
     // Check trial status
-    const { data: subscription, error } = await supabaseClient
+    const { data: subscription, error } = await supabase
       .from('subscriptions')
       .select('plan_name, status, trial_start_date, trial_end_date')
       .eq('organization_id', organizationId)
@@ -41,17 +34,11 @@ serve(async (req) => {
 
     if (error) {
       // No subscription found
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          isInTrial: false,
-          hasActiveSubscription: false,
-          trialDaysRemaining: 0
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      return createSuccessResponse({
+        isInTrial: false,
+        hasActiveSubscription: false,
+        trialDaysRemaining: 0
+      })
     }
 
     // Check if it's a trial and still active
@@ -72,29 +59,14 @@ serve(async (req) => {
     const hasActiveSubscription = subscription.status === 'active' || 
                                   subscription.status === 'trialing'
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        isInTrial: isInTrial,
-        hasActiveSubscription: hasActiveSubscription,
-        trialDaysRemaining: trialDaysRemaining
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createSuccessResponse({
+      isInTrial: isInTrial,
+      hasActiveSubscription: hasActiveSubscription,
+      trialDaysRemaining: trialDaysRemaining
+    })
 
   } catch (error) {
     console.error('Error checking trial status:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return createErrorResponse(error.message, 500)
   }
 })

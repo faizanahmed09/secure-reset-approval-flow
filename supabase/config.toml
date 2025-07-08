@@ -3,6 +3,3 @@ project_id = "lbyvutzdimidlzgbjstz"
 
 [functions.send-mfa-push]
 verify_jwt = false
-
-[functions.check-mfa-status]
-verify_jwt = false

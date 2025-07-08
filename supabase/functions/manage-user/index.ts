@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { 
+  handleCorsPrelight,
+  createErrorResponse,
+  createSuccessResponse
+} from "../_shared/auth.ts";
 
 // Helper function to extract domain from email
 function extractDomainFromEmail(email: string): string {
@@ -45,6 +44,8 @@ async function checkMfaServicePrincipalExists(accessToken: string): Promise<bool
   }
 }
 
+
+
 // Helper function to check and manage MFA secret for organization
 async function checkAndManageMfaSecret(tenantId: string, clientId: string, accessToken: string, userEmail: string, organizationId: string, isNewOrganization: boolean) {
   try {
@@ -56,12 +57,12 @@ async function checkAndManageMfaSecret(tenantId: string, clientId: string, acces
     }
     
     if (isNewOrganization) {
-      console.log("Generating MFA secret for new organization:", organizationId);
+  
       return await generateMfaSecret(tenantId, clientId, accessToken, userEmail, organizationId, "new organization");
     }
     
     // For existing organizations, check if MFA secret exists and is valid
-    console.log("Checking MFA secret status for existing organization:", organizationId);
+
     
     const checkResponse = await fetch(
       `${Deno.env.get("SUPABASE_URL")}/functions/v1/check-mfa-secret`,
@@ -82,10 +83,8 @@ async function checkAndManageMfaSecret(tenantId: string, clientId: string, acces
       // If no valid secret exists or it's expiring soon, generate a new one
       if (!checkData.exists || checkData.isExpiringSoon) {
         const reason = !checkData.exists ? "missing" : "expiring soon";
-        console.log(`MFA secret ${reason} for organization ${organizationId}, generating new secret`);
         return await generateMfaSecret(tenantId, clientId, accessToken, userEmail, organizationId, reason);
       } else {
-        console.log("Valid MFA secret already exists for organization:", organizationId);
         return { generated: false, reason: "already_exists" };
       }
     } else {
@@ -122,7 +121,6 @@ async function generateMfaSecret(tenantId: string, clientId: string, accessToken
     
     if (generateResponse.ok) {
       const generateData = await generateResponse.json();
-      console.log(`MFA secret generated successfully for ${reason}:`, generateData.secretId);
       return { generated: true, secretId: generateData.secretId, reason };
     } else {
       const error = await generateResponse.json();
@@ -143,7 +141,6 @@ async function createOrGetOrganization(
   clientId: string
 ) {
   const domain = extractDomainFromEmail(email);
-  console.log("Processing organization for domain:", domain);
 
   if (!domain) {
     throw new Error("Invalid email domain");
@@ -163,7 +160,6 @@ async function createOrGetOrganization(
   }
 
   if (existingOrg) {
-    console.log("Found existing organization:", existingOrg);
     return existingOrg;
   }
 
@@ -189,7 +185,7 @@ async function createOrGetOrganization(
     throw new Error("Failed to create organization");
   }
 
-  console.log("Created new organization:", createdOrg);
+
 
   // Create organization configuration
   const { error: configError } = await supabase
@@ -209,7 +205,6 @@ async function createOrGetOrganization(
 
   // Create trial subscription for new organization
   try {
-    console.log("Creating trial subscription for new organization:", createdOrg.id);
     const trialResponse = await fetch(
       `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-trial-subscription`,
       {
@@ -225,7 +220,6 @@ async function createOrGetOrganization(
 
     if (trialResponse.ok) {
       const trialResult = await trialResponse.json();
-      console.log("Trial subscription created successfully:", trialResult);
     } else {
       const trialError = await trialResponse.json();
       console.error("Failed to create trial subscription:", trialError);
@@ -258,9 +252,7 @@ async function hasAdminUsers(supabase: any, organizationId: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders,
-    });
+    return handleCorsPrelight();
   }
 
   try {
@@ -268,38 +260,14 @@ serve(async (req) => {
     const { userInfo } = body; // Removed organizationDetails as it's no longer needed
 
     if (!userInfo || !userInfo.email) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Missing user information",
-        }),
-        {
-          status: 400,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return createErrorResponse("Missing user information", 400);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Server configuration error",
-        }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return createErrorResponse("Server configuration error", 500);
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -315,19 +283,7 @@ serve(async (req) => {
       );
     } catch (orgError) {
       console.error("Organization error:", orgError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Failed to process organization",
-        }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return createErrorResponse("Failed to process organization", 500);
     }
 
     // Check if user exists
@@ -338,19 +294,7 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error("Error checking user:", fetchError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Database error",
-        }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return createErrorResponse("Database error", 500);
     }
 
     const existingUser =
@@ -387,7 +331,6 @@ serve(async (req) => {
         if (userInfo.accessToken) {
           // For admin users, check and manage MFA secret
           if (existingUser.role === "admin") {
-            console.log("Checking MFA secret for existing admin user (update failed):", userInfo.email);
             const mfaResult = await checkAndManageMfaSecret(
               userInfo.tenantId,
               userInfo.clientId,
@@ -410,7 +353,6 @@ serve(async (req) => {
             }
           } else {
             // For non-admin users, just check if service principal exists
-            console.log("Checking MFA service principal for non-admin user (update failed):", userInfo.email);
             const servicePrincipalExists = await checkMfaServicePrincipalExists(userInfo.accessToken);
             if (!servicePrincipalExists) {
               console.warn(`MFA service principal not found in tenant (non-admin user, update failed)`);
@@ -422,21 +364,12 @@ serve(async (req) => {
         }
         
         // Return existing user data if update fails
-        return new Response(
-          JSON.stringify({
-            success: true,
-            action: "login",
-            user: { ...existingUser, organization },
-            message: "User logged in successfully",
-            mfaSetupStatus,
-          }),
-          {
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        return createSuccessResponse({
+          action: "login",
+          user: { ...existingUser, organization },
+          message: "User logged in successfully",
+          mfaSetupStatus,
+        });
       }
 
       // Check MFA setup status for all users (so they're aware of issues)
@@ -444,7 +377,6 @@ serve(async (req) => {
       if (userInfo.accessToken) {
         // For admin users, check and manage MFA secret
         if (existingUser.role === "admin") {
-          console.log("Checking MFA secret for existing admin user:", userInfo.email);
           const mfaResult = await checkAndManageMfaSecret(
             userInfo.tenantId,
             userInfo.clientId,
@@ -455,7 +387,6 @@ serve(async (req) => {
           );
           
           if (mfaResult.generated) {
-            console.log(`MFA secret generated for existing admin (${mfaResult.reason})`);
             mfaSetupStatus = 'success';
           } else if (mfaResult.error) {
             console.warn("MFA secret management failed for existing admin:", mfaResult.error);
@@ -469,7 +400,6 @@ serve(async (req) => {
           }
         } else {
           // For non-admin users, just check if service principal exists (so they're informed)
-          console.log("Checking MFA service principal for non-admin user:", userInfo.email);
           const servicePrincipalExists = await checkMfaServicePrincipalExists(userInfo.accessToken);
           if (!servicePrincipalExists) {
             console.warn(`MFA service principal not found in tenant (non-admin user)`);
@@ -480,21 +410,12 @@ serve(async (req) => {
         }
       }
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          action: "login",
-          user: updatedUser,
-          message: "User logged in successfully",
-          mfaSetupStatus,
-        }),
-        {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return createSuccessResponse({
+        action: "login",
+        user: updatedUser,
+        message: "User logged in successfully",
+        mfaSetupStatus,
+      });
     }
 
     // Check if this is the first user for the organization
@@ -526,19 +447,7 @@ serve(async (req) => {
 
     if (createError) {
       console.error("Error creating user:", createError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Failed to create user",
-        }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return createErrorResponse("Failed to create user", 500);
     }
 
     // Check MFA setup status for all new users (so they're aware of issues)
@@ -546,7 +455,6 @@ serve(async (req) => {
     if (userInfo.accessToken) {
       // For admin users, check and manage MFA secret
       if (userRole === "admin") {
-        console.log("Checking MFA secret for new admin user:", userInfo.email);
         const mfaResult = await checkAndManageMfaSecret(
           userInfo.tenantId,
           userInfo.clientId,
@@ -557,7 +465,6 @@ serve(async (req) => {
         );
         
         if (mfaResult.generated) {
-          console.log(`MFA secret generated for admin (${mfaResult.reason})`);
           mfaSetupStatus = 'success';
         } else if (mfaResult.error) {
           console.warn("MFA secret management failed for admin:", mfaResult.error);
@@ -571,7 +478,6 @@ serve(async (req) => {
         }
       } else {
         // For non-admin users, just check if service principal exists (so they're informed)
-        console.log("Checking MFA service principal for new non-admin user:", userInfo.email);
         const servicePrincipalExists = await checkMfaServicePrincipalExists(userInfo.accessToken);
         if (!servicePrincipalExists) {
           console.warn(`MFA service principal not found in tenant (new non-admin user)`);
@@ -582,35 +488,14 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        action: "signup",
-        user: createdUser,
-        message: "User created successfully",
-        mfaSetupStatus,
-      }),
-      {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    return createSuccessResponse({
+      action: "signup",
+      user: createdUser,
+      message: "User created successfully",
+      mfaSetupStatus,
+    });
   } catch (error) {
     console.error("Error processing request:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: "Internal server error",
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    return createErrorResponse("Internal server error", 500);
   }
 });
