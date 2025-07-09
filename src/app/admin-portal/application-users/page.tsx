@@ -43,6 +43,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  SubscriptionOverviewSkeleton,
+  TrialInfoSkeleton,
+  SubscriptionWarningSkeleton,
+  UsersTableSkeleton,
+  OrganizationInfoSkeleton
+} from '@/components/ApplicationUserSkeletons';
 
 interface User {
   id: string;
@@ -77,8 +84,6 @@ const ApplicationUsers = () => {
   const { toast } = useToast();
   const { isTokenValid, validateTokens, isValidating } = useTokenValidation();
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<EditingUser | null>(null);
   const [saving, setSaving] = useState(false);
   
@@ -107,31 +112,19 @@ const ApplicationUsers = () => {
   // Subscription and user management states
   const [subscription, setSubscription] = useState<any>(null);
   const [seatInfo, setSeatInfo] = useState<any>(null);
-  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingBillingCount, setLoadingBillingCount] = useState(true);
   const [billingUserCount, setBillingUserCount] = useState(0); // Only admin + verifier users
 
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Fetch both subscription and users, then calculate user allocation
-      const loadData = async () => {
-        try {
-          setInitialLoading(true);
-          await Promise.all([
-            fetchUsers(),
-            fetchSubscriptionInfo(),
-            fetchBillingUserCount()
-          ]);
-        } catch (error) {
-          console.error('Error loading initial data:', error);
-        } finally {
-          setInitialLoading(false);
-          setLoading(false); // Ensure loading is false after initial load
-        }
-      };
-      
-      loadData();
+      // Fetch data with individual loading states
+      fetchUsers();
+      fetchSubscriptionInfo();
+      fetchBillingUserCount();
       
       if (user.organizations) {
         setOrgName(user.organizations.display_name);
@@ -212,10 +205,7 @@ const ApplicationUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      // Only set loading state if this is not part of initial load
-      if (!initialLoading) {
-        setLoading(true);
-      }
+      setLoadingUsers(true);
       
       if (!user?.organization_id) {
         throw new Error('No organization found');
@@ -233,15 +223,15 @@ const ApplicationUsers = () => {
         variant: 'destructive',
       });
     } finally {
-      // Only clear loading state if this is not part of initial load
-      if (!initialLoading) {
-        setLoading(false);
-      }
+      setLoadingUsers(false);
     }
   };
 
   const fetchSubscriptionInfo = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoadingSubscription(false);
+      return;
+    }
     
     try {
       setLoadingSubscription(true);
@@ -257,13 +247,19 @@ const ApplicationUsers = () => {
   };
 
   const fetchBillingUserCount = async () => {
-    if (!user?.organization_id) return;
+    if (!user?.organization_id) {
+      setLoadingBillingCount(false);
+      return;
+    }
     
     try {
+      setLoadingBillingCount(true);
       const countData = await getOrganizationUserCount(user.organization_id);
       setBillingUserCount(countData.userCount); // Only admin + verifier users
     } catch (error) {
       console.error('Error fetching billing user count:', error);
+    } finally {
+      setLoadingBillingCount(false);
     }
   };
 
@@ -882,13 +878,7 @@ const ApplicationUsers = () => {
     }
   };
 
-  if (isLoading || initialLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
-        <BeautifulLoader />
-      </div>
-    );
-  }
+
 
   if (!isAuthenticated) {
     return (
@@ -930,7 +920,7 @@ const ApplicationUsers = () => {
           </div>
 
           {/* Trial Information Card */}
-          {isAdmin && subscription && subscription.plan_name === 'TRIAL' && (
+          {isAdmin && !loadingSubscription && !loadingBillingCount && subscription && subscription.plan_name === 'TRIAL' && (
             <Card className="mb-6 border-blue-200 bg-blue-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-blue-800">
@@ -984,8 +974,13 @@ const ApplicationUsers = () => {
             </Card>
           )}
 
+          {/* Subscription Loading Skeleton */}
+          {isAdmin && (loadingSubscription || loadingBillingCount) && (
+            <SubscriptionOverviewSkeleton />
+          )}
+          
           {/* User Information Card */}
-          {isAdmin && seatInfo && subscription && subscription.plan_name !== 'TRIAL' && !isSubscriptionExpired(subscription) && (
+          {isAdmin && !loadingSubscription && !loadingBillingCount && seatInfo && subscription && subscription.plan_name !== 'TRIAL' && !isSubscriptionExpired(subscription) && (
             <Card className="mb-6">
               <CardHeader className="flex flex-row items-start justify-between">
                 <div>
@@ -1051,7 +1046,7 @@ const ApplicationUsers = () => {
           )}
 
           {/* Canceled/Canceling Subscription Warning */}
-          {isAdmin && subscription && (subscription.status === 'canceled' || subscription.cancel_at_period_end) && (
+          {isAdmin && !loadingSubscription && subscription && (subscription.status === 'canceled' || subscription.cancel_at_period_end) && (
             <Card className={`mb-6 ${isSubscriptionExpired(subscription) ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}>
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 ${isSubscriptionExpired(subscription) ? 'text-red-800' : 'text-orange-800'}`}>
@@ -1317,10 +1312,8 @@ const ApplicationUsers = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {loading && !initialLoading ? (
-                <div className="flex justify-center py-8">
-                  <BeautifulLoader />
-                </div>
+              {loadingUsers ? (
+                <UsersTableSkeleton />
               ) : users.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

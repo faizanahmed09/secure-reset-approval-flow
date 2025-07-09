@@ -12,8 +12,9 @@ import {
   BASIC_PLAN,
   getOrganizationUserCount
 } from '@/services/subscriptionService';
+import { SubscriptionPlansSkeleton } from '@/components/SubscriptionSkeletons';
 
-const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?: any; plans: any[] }) => {
+const SubscriptionPlans = ({ subscriptionStatus, plans, isLoading = false }: { subscriptionStatus?: any; plans: any[]; isLoading?: boolean }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [subscribingToPlan, setSubscribingToPlan] = useState<string | null>(null);
@@ -179,6 +180,11 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
     return null;
   };
 
+  // Show skeleton if plans are loading
+  if (isLoading) {
+    return <SubscriptionPlansSkeleton />;
+  }
+
   return (
     <div className="bg-white">
       <div className="container mx-auto py-6">
@@ -240,10 +246,17 @@ const SubscriptionPlans = ({ subscriptionStatus, plans }: { subscriptionStatus?:
                   
                   {/* Pricing Section */}
                   {loadingCount ? (
-                    <div className="mt-8">
+                    <div className="mt-4 p-4 bg-white rounded-xl border">
                       <div className="animate-pulse space-y-3">
-                        <div className="h-12 bg-gray-200 rounded-lg w-32 mx-auto"></div>
-                        <div className="h-6 bg-gray-200 rounded w-40 mx-auto"></div>
+                        <div className="h-9 bg-gray-200 rounded-lg w-20 mx-auto"></div>
+                        <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
+                        <div className="bg-blue-50 rounded-lg p-2 border border-blue-100">
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                            <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                          </div>
+                          <div className="h-3 w-28 bg-gray-200 rounded mx-auto"></div>
+                        </div>
                       </div>
                     </div>
                   ) : (
