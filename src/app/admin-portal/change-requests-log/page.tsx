@@ -15,6 +15,7 @@ import { BeautifulLoader } from "@/app/loader";
 import { checkSubscriptionAccess } from '@/services/subscriptionService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Sparkles, ListChecks } from 'lucide-react';
+import { ChangeRequestsLogSkeleton } from '@/components/PageSkeletons';
 
 // Define types for the change request
 export type ChangeRequest = {
@@ -218,8 +219,25 @@ const ChangeRequestsLog = () => {
   // Show loader while checking authentication or subscription
   if (isLoading || checkingSubscription) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <BeautifulLoader />
+      <div className="flex flex-col min-h-screen bg-white">
+        <Header />
+        <main className="flex-1 container py-12">
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="outline" size="sm" disabled>
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Home
+            </Button>
+          </div>
+          <div className="flex items-center gap-4 mb-12">
+            <div className="w-1 h-12 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Verify User Request Logs</h2>
+              <p className="text-gray-600">View and manage recent verify user requests in the system</p>
+            </div>
+          </div>
+          <ChangeRequestsLogSkeleton />
+        </main>
+        <Footer />
       </div>
     );
   }

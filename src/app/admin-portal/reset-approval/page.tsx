@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { BeautifulLoader } from '@/app/loader';
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { ResetApprovalFormSkeleton } from '@/components/PageSkeletons';
 
 const ResetApproval = () => {
   const router = useRouter();
@@ -27,9 +28,27 @@ const ResetApproval = () => {
   // Show loader while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <BeautifulLoader />
-      </div>
+      <SubscriptionGuard feature="MFA reset approval">
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-1 container py-12">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <Button variant="outline" size="sm" disabled>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Home
+                </Button>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="max-w-md w-full space-y-8">
+                  <ResetApprovalFormSkeleton />
+                </div>
+              </div>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      </SubscriptionGuard>
     );
   }
 

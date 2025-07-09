@@ -28,6 +28,7 @@ import {
   getOrganizationUserCount,
   SubscriptionStatus 
 } from '@/services/subscriptionService';
+import { SubscriptionStatusSkeleton } from '@/components/SubscriptionSkeletons';
 
 interface SubscriptionStatusProps {
   userId?: string;
@@ -179,26 +180,7 @@ const SubscriptionStatusComponent = ({
   };
 
   if (loading) {
-    return (
-      <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-blue-50 to-blue-100">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200/30 rounded-full blur-3xl"></div>
-        <CardContent className="p-8">
-          <div className="animate-pulse space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 bg-blue-200 rounded-xl"></div>
-              <div className="space-y-2 flex-1">
-                <div className="h-6 bg-blue-200 rounded-lg w-1/3"></div>
-                <div className="h-4 bg-blue-200 rounded w-1/2"></div>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="h-20 bg-blue-200 rounded-xl"></div>
-              <div className="h-20 bg-blue-200 rounded-xl"></div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <SubscriptionStatusSkeleton />;
   }
 
   if (!subscriptionStatus?.hasActiveSubscription) {

@@ -31,6 +31,7 @@ import Loader from "@/components/common/Loader";
 import debounce from 'lodash/debounce';
 import { getAccessToken } from '@/services/userService';
 import { tokenInterceptor } from '@/utils/tokenInterceptor';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AzureUser {
   id: string;
@@ -768,7 +769,17 @@ const ResetApprovalForm = ({ initialUserEmail }: ResetApprovalFormProps) => {
               {/* Search Results Dropdown */}
               {showDropdown && (
                 <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded-md border bg-white shadow-lg">
-                  {searchResults.length > 0 ? (
+                  {isSearching ? (
+                    // Loading skeleton for search results
+                    <div className="space-y-2 p-2">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="px-3 py-2">
+                          <Skeleton className="h-4 w-3/4 mb-1" />
+                          <Skeleton className="h-3 w-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : searchResults.length > 0 ? (
                     searchResults.map((user, index) => (
                       <div
                         key={`${user.id}-${user.userPrincipalName}-${index}`}
