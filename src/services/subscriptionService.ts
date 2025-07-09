@@ -1,5 +1,20 @@
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbyvutzdimidlzgbjstz.supabase.co";
 
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (typeof window !== 'undefined') {
+    const idToken = window.sessionStorage.getItem('idToken');
+    if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`;
+    }
+  }
+
+  return headers;
+};
+
 // Dynamic plan details from Stripe
 export const BASIC_PLAN: SubscriptionPlan = {
   id: 'basic',
@@ -432,9 +447,7 @@ export const updateSubscriptionQuantity = async (
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/update-subscription-quantity`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         organization_id: organizationId,
         new_user_count: newUserCount,
