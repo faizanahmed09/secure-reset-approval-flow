@@ -60,13 +60,6 @@ const Index = () => {
 
   // Check MFA setup status and update session storage accordingly
   useEffect(() => {
-    console.log('Admin portal - MFA status check:', { 
-      isLoading, 
-      isAuthenticated, 
-      needsOrganizationSetup, 
-      mfaSetupStatus 
-    });
-    
     if (
       !isLoading && 
       isAuthenticated &&

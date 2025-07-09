@@ -552,7 +552,9 @@ const ResetApprovalForm = ({ initialUserEmail }: ResetApprovalFormProps) => {
         searchAbortControllerRef.current = null;
       }
 
-      instance.logoutRedirect().catch(console.error);
+      instance.logoutRedirect({
+        postLogoutRedirectUri: "https://authenpush.com",
+      }).catch(console.error);
       clearAzureAuth();
 
       toast({
