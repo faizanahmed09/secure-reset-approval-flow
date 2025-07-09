@@ -28,7 +28,26 @@ A Next.js application with Microsoft Azure AD authentication integration.
 - **Application Type**: Single-Page Application (SPA)
 - **Scopes**: `User.Read`, `openid`, `profile`
 
-### Environment
+### Environment Variables
+
+Create a `.env.local` file in your project root with the following variables:
+
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Azure AD Configuration (already configured)
+# AZURE_CLIENT_ID=aad5399a-e678-4857-80be-a1664910d86a
+
+# Stripe Configuration (if using Stripe)
+# STRIPE_SECRET_KEY=sk_test_...
+# STRIPE_PUBLISHABLE_KEY=pk_test_...
+# STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### Current Configuration
 - **Supabase URL**: `https://lbyvutzdimidlzgbjstz.supabase.co`
 - **Development Port**: `3000`
 

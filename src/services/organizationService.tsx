@@ -1,4 +1,4 @@
-const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbyvutzdimidlzgbjstz.supabase.co";
 
 const getAuthHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {

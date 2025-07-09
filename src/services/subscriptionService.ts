@@ -1,4 +1,4 @@
-const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbyvutzdimidlzgbjstz.supabase.co";
 
 // Dynamic plan details from Stripe
 export const BASIC_PLAN: SubscriptionPlan = {

@@ -1,6 +1,6 @@
 import { jwtDecode } from "jwt-decode";
 
-const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbyvutzdimidlzgbjstz.supabase.co";
 
 // Check if a valid MFA secret exists for the organization
 export async function checkMfaSecret(accessToken: string, idToken: string, organizationId: string) {

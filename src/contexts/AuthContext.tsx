@@ -8,7 +8,7 @@ import { tokenInterceptor } from '@/utils/tokenInterceptor'
 import { useToast } from '@/hooks/use-toast'
 import { SessionExpiredModal } from '@/components/SessionExpiredModal'
 
-const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co"
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbyvutzdimidlzgbjstz.supabase.co"
 
 interface Organization {
   id: string;

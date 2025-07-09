@@ -2,7 +2,7 @@ import { jwtDecode } from "jwt-decode";
 import { IPublicClientApplication, AuthenticationResult } from "@azure/msal-browser";
 import { tokenInterceptor } from '@/utils/tokenInterceptor';
 
-const SUPABASE_URL = "https://lbyvutzdimidlzgbjstz.supabase.co";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lbyvutzdimidlzgbjstz.supabase.co";
 
 /**
  * Helper function to get authorization headers for Supabase function calls
