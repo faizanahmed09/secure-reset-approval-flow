@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { BeautifulLoader } from '@/app/loader';
 import { useRouter } from 'next/navigation';
+import { AdminPortalDashboardSkeleton } from '@/components/PageSkeletons';
 
 const Index = () => {
   const { instance, accounts, inProgress } = useMsal();
@@ -112,8 +113,12 @@ const Index = () => {
   // Show initial loader while MSAL is initializing or content is not ready
   if (isInitializing || inProgress === 'startup' || inProgress === 'handleRedirect' || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <BeautifulLoader />
+      <div className="flex flex-col min-h-screen bg-white">
+        <Header />
+        <main className="flex-1 container py-12 flex items-center justify-center">
+          <AdminPortalDashboardSkeleton />
+        </main>
+        <Footer />
       </div>
     );
   }

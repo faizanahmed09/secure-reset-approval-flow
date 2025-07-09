@@ -17,6 +17,7 @@ import { getAccessToken } from '@/services/userService';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import UserFilters, { UserFilterOptions, SortField, SortOrder } from '@/components/UserFilters';
+import { UsersListSkeleton } from '@/components/PageSkeletons';
 
 interface AzureUser {
   id: string;
@@ -473,8 +474,20 @@ const UsersComponent = () => {
   // Show loading state only for initial load
   if (loading || inProgress !== "none") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader text="Loading users..." subtext="Fetching users from Azure AD..." />
+      <div className="flex flex-col min-h-screen bg-white">
+        <Header />
+        <main className="flex-1 container py-12">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <Button variant="outline" size="sm" disabled>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Home
+              </Button>
+            </div>
+            <UsersListSkeleton />
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }

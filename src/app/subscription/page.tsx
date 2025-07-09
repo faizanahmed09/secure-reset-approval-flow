@@ -13,6 +13,7 @@ import { BeautifulLoader } from '@/app/loader';
 import { getSubscriptionStatus, getSubscriptionPlans, SubscriptionStatus } from '@/services/subscriptionService';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { SubscriptionPageSkeleton } from '@/components/SubscriptionSkeletons';
 
 const SubscriptionPage = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -80,8 +81,31 @@ const SubscriptionPage = () => {
 
   if (isLoading || subStatusLoading || plansLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-blue-100/50 to-blue-50">
-        <BeautifulLoader />
+      <div className="flex flex-col min-h-screen bg-white">
+        <Header />
+        
+        <main className="flex-1 container py-12 relative">
+          {/* Navigation */}
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="outline" size="sm" disabled>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Home
+            </Button>
+          </div>
+
+          {/* Page Header */}
+          <div className="flex items-center gap-4 mb-12">
+            <div className="w-1 h-12 bg-blue-500 rounded-full"></div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Manage Your Plan</h2>
+              <p className="text-gray-600">Control your billing and subscription preferences</p>
+            </div>
+          </div>
+
+          <SubscriptionPageSkeleton />
+        </main>
+        
+        <Footer />
       </div>
     );
   }
@@ -195,7 +219,11 @@ const SubscriptionPage = () => {
           
           <div className="relative">
             <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-200/50 shadow-xl">
-              <SubscriptionPlans subscriptionStatus={subscriptionStatus} plans={plans} />
+              <SubscriptionPlans 
+                subscriptionStatus={subscriptionStatus} 
+                plans={plans} 
+                isLoading={plansLoading}
+              />
             </div>
           </div>
         </div>
