@@ -5,6 +5,14 @@ import Link from 'next/link'
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "./ui/badge";
 
+// Helper function to display role text
+const getRoleDisplay = (role: string) => {
+  if (role === 'basic') {
+    return 'View Only';
+  }
+  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+};
+
 const Header = () => {
   const { user } = useAuth();
   const pathname = usePathname();
@@ -34,7 +42,7 @@ const Header = () => {
         {user && (
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium">{user.display_name || user.name}</span>
-            <Badge variant="outline" className="capitalize">{user.role}</Badge>
+            <Badge variant="outline">{getRoleDisplay(user.role || '')}</Badge>
           </div>
         )}
       </div>

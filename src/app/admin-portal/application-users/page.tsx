@@ -824,6 +824,9 @@ const ApplicationUsers = () => {
 
   // Helper function to capitalize role text
   const capitalizeRole = (role: string) => {
+    if (role === 'basic') {
+      return 'View Only';
+    }
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
   };
 
@@ -949,7 +952,7 @@ const ApplicationUsers = () => {
                 <div className="mt-4 p-4 bg-blue-100 border border-blue-200 rounded-md">
                   <div className="space-y-2">
                     <p className="text-sm text-blue-800 font-medium">
-                      🎉 During your free trial, you can add unlimited admin, verifier, and basic users!
+                      🎉 During your free trial, you can add unlimited admin, verifier, and view-only users!
                     </p>
                     <p className="text-xs text-blue-700">
                       Trial ends on: {subscription.trial_end_date ? new Date(subscription.trial_end_date).toLocaleDateString('en-US', {
@@ -1023,22 +1026,22 @@ const ApplicationUsers = () => {
                 </div>
                 {seatInfo.availableSeats > 0 && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-800">
-                      💡 You can add {seatInfo.availableSeats} more admin/verifier user{seatInfo.availableSeats === 1 ? '' : 's'} without additional charge.
-                    </p>
-                    <p className="text-xs text-green-700 mt-1">
-                      Basic users are always free and don't count towards your subscription.
-                    </p>
+                                      <p className="text-sm text-green-800">
+                    💡 You can add {seatInfo.availableSeats} more admin/verifier user{seatInfo.availableSeats === 1 ? '' : 's'} without additional charge.
+                  </p>
+                  <p className="text-xs text-green-700 mt-1">
+                    View-only users are always free and don't count towards your subscription.
+                  </p>
                   </div>
                 )}
                 {seatInfo.availableSeats === 0 && (
                   <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
-                    <p className="text-sm text-orange-800">
-                      ⚠️ At user limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
-                    </p>
-                    <p className="text-xs text-orange-700 mt-1">
-                      Basic users are always free and don't count towards your subscription.
-                    </p>
+                                      <p className="text-sm text-orange-800">
+                    ⚠️ At user limit. Adding more admin/verifier users will upgrade your subscription and charge prorated amount.
+                  </p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    View-only users are always free and don't count towards your subscription.
+                  </p>
                   </div>
                 )}
               </CardContent>
@@ -1141,7 +1144,7 @@ const ApplicationUsers = () => {
                         {subscription?.plan_name === 'TRIAL' ? (
                           <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                             <div className="text-sm text-blue-800">
-                              🎉 Free Trial Active: Add unlimited admin, verifier, and basic users!
+                              🎉 Free Trial Active: Add unlimited admin, verifier, and view-only users!
                             </div>
                             <div className="text-xs text-blue-700 mt-1">
                               Trial expires in {subscription.trial_days_remaining || 0} days. Subscribe to continue with unlimited access.
@@ -1150,7 +1153,7 @@ const ApplicationUsers = () => {
                         ) : isSubscriptionExpired(subscription) ? (
                           <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
                             <div className="text-sm text-red-800">
-                              ⚠️ Your subscription has expired. You can only add basic users.
+                              ⚠️ Your subscription has expired. You can only add view-only users.
                             </div>
                             <div className="text-xs text-red-700 mt-1">
                               Reactivate your subscription to add admin/verifier users.
@@ -1188,7 +1191,7 @@ const ApplicationUsers = () => {
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              💡 Basic users are always free and don't require user slots
+                              💡 View-only users are always free and don't require user slots
                             </div>
                           </div>
                         )}
@@ -1234,7 +1237,7 @@ const ApplicationUsers = () => {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="basic">Basic</SelectItem>
+                              <SelectItem value="basic">View Only</SelectItem>
                               <SelectItem value="verifier">Verifier</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>
@@ -1353,7 +1356,7 @@ const ApplicationUsers = () => {
                                 <SelectContent>
                                   <SelectItem value="admin">Admin</SelectItem>
                                   <SelectItem value="verifier">Verifier</SelectItem>
-                                  <SelectItem value="basic">Basic</SelectItem>
+                                  <SelectItem value="basic">View Only</SelectItem>
                                 </SelectContent>
                               </Select>
                             ) : (
@@ -1399,12 +1402,24 @@ const ApplicationUsers = () => {
                                 </div>
                               ) : (
                                 <div className="flex gap-2">
-                                  <Button size="sm" variant="outline" onClick={() => handleEdit(u)}>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => handleEdit(u)}
+                                    disabled={u.email === user?.email}
+                                    title={u.email === user?.email ? "You cannot edit your own account" : "Edit user"}
+                                  >
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                   <Dialog open={!!userToDelete && userToDelete.id === u.id} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>
                                     <DialogTrigger asChild>
-                                      <Button size="sm" variant="destructive" onClick={() => setUserToDelete(u)}>
+                                      <Button 
+                                        size="sm" 
+                                        variant="destructive" 
+                                        onClick={() => setUserToDelete(u)}
+                                        disabled={u.email === user?.email}
+                                        title={u.email === user?.email ? "You cannot delete your own account" : "Delete user"}
+                                      >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </DialogTrigger>
