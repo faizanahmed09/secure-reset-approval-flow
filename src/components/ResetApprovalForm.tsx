@@ -32,6 +32,7 @@ import debounce from 'lodash/debounce';
 import { getAccessToken } from '@/services/userService';
 import { tokenInterceptor } from '@/utils/tokenInterceptor';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AzureUser {
   id: string;
@@ -74,6 +75,7 @@ interface AzureJwtPayload {
 
 const ResetApprovalForm = ({ initialUserEmail }: ResetApprovalFormProps) => {
   const { instance, accounts } = useMsal();
+  const { user } = useAuth();
   const [email, setEmail] = useState(initialUserEmail || "");
   const [resetReq, setResetReq] = useState<ResetRequestState>({
     email: "",
@@ -314,6 +316,7 @@ const ResetApprovalForm = ({ initialUserEmail }: ResetApprovalFormProps) => {
         email: decodedToken.preferred_username || "unknown@email.com", 
         tenantId: decodedToken.tid || "", 
         userObjectId: decodedToken.oid || "", 
+        organizationId: user?.organization_id || null, // Add organization ID from current user context
       };
 
       updateRequestState({ 

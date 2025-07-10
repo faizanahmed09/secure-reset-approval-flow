@@ -545,10 +545,6 @@ const UsersComponent = () => {
                     <span>Entra ID Users</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="text-xs">
-                      <Database className="h-3 w-3 mr-1" />
-                      Cache: {userCache.current.getSize()} entries
-                    </Badge>
                     <Button
                       variant="outline"
                       size="sm"

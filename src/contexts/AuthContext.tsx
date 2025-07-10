@@ -141,6 +141,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`,
           },
           body: JSON.stringify({
             userInfo: {

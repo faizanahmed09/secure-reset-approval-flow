@@ -57,8 +57,8 @@ const ChangeRequestsLog = () => {
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
-  // Get tenant ID from authenticated user (only if user exists)
-  const tenantId = user?.tenant_id;
+  // Get organization ID from authenticated user (only if user exists)
+  const organizationId = user?.organization_id;
   
   const LOG_RETENTION_DAYS = 90; // <-- Change this to update log retention period
   const retentionDate = new Date();
@@ -93,11 +93,11 @@ const ChangeRequestsLog = () => {
   useEffect(() => {
     const fetchTotalCount = async () => {
       try {
-        if (!tenantId) return;
+        if (!organizationId) return;
         let query : any = supabase
           .from('change_requests')
           .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId);
+          .eq('organization_id', organizationId);
         // Apply retention based on plan type
         if (subscriptionPlan === 'BASIC' || subscriptionPlan === 'TRIAL') {
           // Basic/Trial: 3 months retention
@@ -132,7 +132,7 @@ const ChangeRequestsLog = () => {
       }
     };
     if (subscriptionPlan !== null) fetchTotalCount();
-  }, [filters.search, filters.status, tenantId, toast, retentionDateString, subscriptionPlan]);
+  }, [filters.search, filters.status, organizationId, toast, retentionDateString, subscriptionPlan]);
 
   // Calculate pagination range
   const getPaginationRange = (page: number, pageSize: number) => {
@@ -144,15 +144,15 @@ const ChangeRequestsLog = () => {
   // Fetch change requests with filters, sorting, and pagination
   const fetchChangeRequests = async () => {
     try {
-      if (!tenantId) {
-        console.warn("No tenant ID available for fetching change requests");
+      if (!organizationId) {
+        console.warn("No organization ID available for fetching change requests");
         return [];
       }
       const { from, to } = getPaginationRange(filters.page, filters.pageSize);
       let query : any = supabase
         .from('change_requests')
         .select('*')
-        .eq('tenant_id', tenantId);
+        .eq('organization_id', organizationId);
       // Apply retention based on plan type  
       if (subscriptionPlan === 'BASIC' || subscriptionPlan === 'TRIAL') {
         // Basic/Trial: 3 months retention
@@ -192,10 +192,10 @@ const ChangeRequestsLog = () => {
 
   // Use React Query for data fetching with updated options for v5
   const { data: changeRequests, isLoading: isTableLoading, error, refetch } = useQuery({
-    queryKey: ['changeRequests', filters, tenantId],
+    queryKey: ['changeRequests', filters, organizationId],
     queryFn: fetchChangeRequests,
     placeholderData: (previousData) => previousData, // Modern replacement for keepPreviousData
-    enabled: !!tenantId && !checkingSubscription // Only run query if tenantId is available and subscription check is done
+    enabled: !!organizationId && !checkingSubscription // Only run query if organizationId is available and subscription check is done
   });
 
   // Handle filter changes
@@ -251,13 +251,13 @@ const ChangeRequestsLog = () => {
     );
   }
 
-  // If no tenant ID available, show error
-  if (!tenantId) {
+  // If no organization ID available, show error
+  if (!organizationId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2 text-red-600">Missing Tenant Information</h2>
-          <p className="text-gray-600 mb-4">Unable to load change requests without tenant information.</p>
+          <h2 className="text-xl font-semibold mb-2 text-red-600">Missing Organization Information</h2>
+          <p className="text-gray-600 mb-4">Unable to load change requests without organization information.</p>
           <Link href="/admin-portal">
             <Button>Return to Admin Portal</Button>
           </Link>

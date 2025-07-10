@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
+  authenticateRequestTokenOnly,
   handleCorsPrelight,
   createErrorResponse,
   createSuccessResponse
@@ -256,11 +257,19 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate the request - only allow authenticated users to manage their own user data
+    const { user } = await authenticateRequestTokenOnly(req);
+    
     const body = await req.json();
     const { userInfo } = body; // Removed organizationDetails as it's no longer needed
 
     if (!userInfo || !userInfo.email) {
       return createErrorResponse("Missing user information", 400);
+    }
+
+    // Verify that the authenticated user matches the userInfo being managed
+    if (user.email !== userInfo.email) {
+      return createErrorResponse("You can only manage your own user data", 403);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -496,6 +505,15 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error processing request:", error);
+    
+    // Handle authentication errors specifically
+    if (error.message.includes('Authorization header') || 
+        error.message.includes('Token') ||
+        error.message.includes('User not found') ||
+        error.message.includes('permissions')) {
+      return createErrorResponse(error.message, 401);
+    }
+    
     return createErrorResponse("Internal server error", 500);
   }
 });

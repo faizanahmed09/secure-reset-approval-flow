@@ -519,6 +519,7 @@
           admin_name: userDetails.name || null,
           admin_email: userDetails.email || null,
           tenant_id: userDetails.tenantId || null,
+          organization_id: userDetails.organizationId || null,
         }),
       });
 
