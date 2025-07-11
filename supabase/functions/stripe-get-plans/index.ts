@@ -7,6 +7,65 @@ import {
   createSuccessResponse
 } from "../_shared/auth.ts"
 
+// Helper function to map Stripe product features to our feature format
+function mapProductFeatures(stripeFeatures: any[]) {
+  const features: any = {};
+  console.log('Mapping Stripe features:', stripeFeatures);
+  
+  stripeFeatures.forEach(feature => {
+    const featureName = feature.name.toLowerCase();
+    
+    // Map Microsoft Authenticator Verifications
+    if (featureName.includes('microsoft authenticator') || featureName.includes('push')) {
+      features.push_verifications = 'unlimited';
+    }
+    
+    // Map Log Retention
+    if (featureName.includes('log retention')) {
+      if (featureName.includes('3 months') || featureName.includes('3 month')) {
+        features.log_retention = '3 months';
+      } else if (featureName.includes('1 year') || featureName.includes('12 months')) {
+        features.log_retention = '1 year';
+      } else {
+        features.log_retention = '1 year'; // Default
+      }
+    }
+    
+    // Map SSO
+    if (featureName.includes('single sign on') || featureName.includes('sso') || featureName.includes('entra id')) {
+      features.sso = true;
+    }
+    
+    // Map SMS Verifications
+    if (featureName.includes('sms') || featureName.includes('text code')) {
+      features.sms_verifications = true;
+    }
+    
+    // Map Teams Verification (if needed in future)
+    if (featureName.includes('teams verification')) {
+      features.teams_verification = true;
+    }
+    
+    // Map Syslog Integration (if needed in future)
+    if (featureName.includes('syslog')) {
+      features.syslog_integration = true;
+    }
+  });
+  
+  // Set defaults if not found
+  if (!features.push_verifications) {
+    features.push_verifications = 'unlimited';
+  }
+  if (!features.log_retention) {
+    features.log_retention = '3 months';
+  }
+  if (features.sso === undefined) {
+    features.sso = true;
+  }
+  
+  return features;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return handleCorsPrelight()
@@ -39,19 +98,7 @@ serve(async (req) => {
         interval_count: price?.recurring?.interval_count || 1,
         trial_period_days: 14, // Default trial period
         max_users: null, // unlimited
-        features: {
-          push_verifications: 'unlimited',
-          log_retention: product.name === 'Basic' ? '3 months' : '1 year',
-          sso: true,
-          ...(product.name === 'Professional' && { 
-            sms_verifications: true 
-          }),
-          ...(product.name === 'Enterprise' && { 
-            sms_verifications: true,
-            teams_verification: true,
-            syslog_integration: true
-          })
-        },
+        features: mapProductFeatures(product.features || []),
         formatted_price: `$${((price?.unit_amount || 0) / 100).toString()}`,
         billing_interval: `per ${price?.recurring?.interval || 'month'}`
       }
