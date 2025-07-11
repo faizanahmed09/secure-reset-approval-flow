@@ -26,15 +26,16 @@ export const msalConfig: Configuration = {
 
 /**
  * Login request configuration
+ * Using .default scope to request all permissions configured in the Azure AD app registration
+ * This simplifies permission management and uses the minimum required permissions:
+ * - Application.ReadWrite.All = Manage client secret for Azure MFA App
+ * - openid = Single Sign On
+ * - User.ReadBasic.All = Read Name, UserPrincipalName, email for user search and push notifications
+ * - UserAuthenticationMethod.ReadWrite.All = Read MFA methods and change default MFA method
  */
 export const loginRequest = {
     scopes: [
-        "https://graph.microsoft.com/User.ReadWrite.All",
-        "https://graph.microsoft.com/Application.ReadWrite.All",
-        "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
-        "openid",
-        "profile",
-        "email"
+        "https://graph.microsoft.com/.default"
     ],
     prompt: "select_account",
     responseMode: "fragment",
