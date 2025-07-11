@@ -479,10 +479,22 @@ const UsersComponent = () => {
         <main className="flex-1 container py-12">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-              <Button variant="outline" size="sm" disabled>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Home
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" disabled>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Home
+                </Button>
+                <div>
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <Users className="h-6 w-6" />
+                    Entra ID Users
+                  </h1>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-foreground">
+                <Database className="h-4 w-4" />
+                <span className="font-medium">Azure AD Directory</span>
+              </div>
             </div>
             <UsersListSkeleton />
           </div>
@@ -527,38 +539,44 @@ const UsersComponent = () => {
       <main className="flex-1 container py-12">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => router.push('/admin-portal')}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Home
-            </Button>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push('/admin-portal')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <Users className="h-6 w-6" />
+                  Entra ID Users
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-foreground">
+              <Database className="h-4 w-4" />
+              <span className="font-medium">Azure AD Directory</span>
+            </div>
           </div>
           <div className="relative">
             <Card className="relative w-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-6 w-6 text-blue-600" />
-                    <span>Entra ID Users</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRefresh}
-                      disabled={loading || searchLoading}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${(loading || searchLoading) ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
-                </CardTitle>
-                <CardDescription>
-                  Search for your user in Entra ID
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <CardDescription>
+                    Search for your user in Entra ID
+                  </CardDescription>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={loading || searchLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${(loading || searchLoading) ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <UserFilters 

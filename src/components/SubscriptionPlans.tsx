@@ -23,7 +23,17 @@ const SubscriptionPlans = ({ subscriptionStatus, plans, isLoading = false }: { s
   const [userCountFetched, setUserCountFetched] = useState<string | null>(null);
 
   // Use dynamic plans from props, fallback to hardcoded plan
-  const availablePlans = plans.length > 0 ? plans : [BASIC_PLAN];
+  // Sort plans in desired order: Basic, Professional, Enterprise
+  const sortPlans = (plans: any[]) => {
+    const planOrder = ['basic', 'professional', 'enterprise'];
+    return plans.sort((a, b) => {
+      const aIndex = planOrder.indexOf(a.id.toLowerCase());
+      const bIndex = planOrder.indexOf(b.id.toLowerCase());
+      return aIndex - bIndex;
+    });
+  };
+  
+  const availablePlans = plans.length > 0 ? sortPlans(plans) : [BASIC_PLAN];
 
   // Stable error handler
   const showUserCountError = useCallback(() => {
@@ -214,7 +224,7 @@ const SubscriptionPlans = ({ subscriptionStatus, plans, isLoading = false }: { s
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {availablePlans.map((plan, index) => (
             <div key={plan.id} className="relative w-full">
-              {index === 0 && (
+              {plan.id.toLowerCase() === 'professional' && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
                   <Badge className="px-4 py-2 bg-blue-500 text-white border-0 shadow-lg text-sm font-semibold">
                     <Sparkles className="h-4 w-4 mr-2" />

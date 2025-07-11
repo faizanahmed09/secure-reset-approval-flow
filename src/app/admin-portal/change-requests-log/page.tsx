@@ -223,18 +223,24 @@ const ChangeRequestsLog = () => {
         <Header />
         <main className="flex-1 container py-12">
           <div className="flex items-center justify-between mb-6">
-            <Button variant="outline" size="sm" disabled>
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Home
-            </Button>
-          </div>
-          <div className="flex items-center gap-4 mb-12">
-            <div className="w-1 h-12 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Verify User Request Logs</h2>
-              <p className="text-gray-600">View and manage recent verify user requests in the system</p>
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="sm" disabled>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <ListChecks className="h-6 w-6" />
+                  Change Requests Log
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-foreground">
+              <Shield className="h-4 w-4" />
+              <span className="font-medium">{user?.organizations?.display_name || 'Organization'}</span>
             </div>
           </div>
+
           <ChangeRequestsLogSkeleton />
         </main>
         <Footer />
@@ -270,25 +276,24 @@ const ChangeRequestsLog = () => {
     <div className="flex flex-col min-h-screen bg-white">
       <Header />
       <main className="flex-1 container py-12 relative">
-        {/* Navigation */}
         <div className="flex items-center justify-between mb-6">
-          <Link href="/admin-portal">
-            <Button 
-              variant="outline" 
-              size="sm"
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Home
-            </Button>
-          </Link>
-        </div>
-        
-        {/* Page Header */}
-        <div className="flex items-center gap-4 mb-12">
-          <div className="w-1 h-12 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Verify User Request Logs</h2>
-            <p className="text-gray-600">View and manage recent verify user requests in the system</p>
+          <div className="flex items-center gap-4">
+            <Link href="/admin-portal">
+              <Button variant="outline" size="sm">
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <ListChecks className="h-6 w-6" />
+                Change Requests Log
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-foreground">
+            <Shield className="h-4 w-4" />
+            <span className="font-medium">{user?.organizations?.display_name || 'Organization'}</span>
           </div>
         </div>
         {/* Filters and Table Section */}

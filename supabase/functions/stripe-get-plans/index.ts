@@ -104,11 +104,16 @@ serve(async (req) => {
       }
     })
 
-    // Show all active plans
-    const activePlans = plans
+    // Sort plans in desired order: Basic, Professional, Enterprise
+    const planOrder = ['basic', 'professional', 'enterprise'];
+    const sortedPlans = plans.sort((a, b) => {
+      const aIndex = planOrder.indexOf(a.id.toLowerCase());
+      const bIndex = planOrder.indexOf(b.id.toLowerCase());
+      return aIndex - bIndex;
+    });
 
     return createSuccessResponse({
-      plans: activePlans
+      plans: sortedPlans
     })
   } catch (error) {
     console.error('Error fetching plans:', error)

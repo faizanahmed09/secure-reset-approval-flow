@@ -15,7 +15,7 @@ const getAuthHeaders = (): Record<string, string> => {
   return headers;
 };
 
-// Dynamic plan details from Stripe
+// Dynamic plan details from Stripe - Ordered: Basic, Professional, Enterprise
 export const BASIC_PLAN: SubscriptionPlan = {
   id: 'basic',
   name: 'Basic',
@@ -37,7 +37,6 @@ export const BASIC_PLAN: SubscriptionPlan = {
   billing_interval: 'per month'
 };
 
-// Additional plans for future use
 export const PROFESSIONAL_PLAN: SubscriptionPlan = {
   id: 'professional',
   name: 'Professional',
@@ -179,9 +178,9 @@ export const getSubscriptionPlans = async (): Promise<SubscriptionPlan[]> => {
 
     return data.plans || [];
   } catch (error) {
-    console.error('Error fetching dynamic plans, falling back to hardcoded Basic plan:', error);
-    // Fallback to hardcoded Basic plan if dynamic fetch fails
-    return [BASIC_PLAN];
+    console.error('Error fetching dynamic plans, falling back to hardcoded plans:', error);
+    // Fallback to hardcoded plans in correct order if dynamic fetch fails
+    return [BASIC_PLAN, PROFESSIONAL_PLAN, ENTERPRISE_PLAN];
   }
 };
 
